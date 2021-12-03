@@ -204,6 +204,18 @@ function Audit(keep_original_message) {
                 // Type is a string array.
             },
             {
+                from: "json.serviceData.policyDelta.auditConfigDeltas",
+                to: "gcp.audit.policy_delta.audit_config_deltas"
+                // Type is an array of objects.
+                // ravelin addition: view specific details of audit config changes
+            },
+            {
+                from: "json.serviceData.policyDelta.bindingDeltas",
+                to: "gcp.audit.policy_delta.binding_deltas"
+                // Type is an array of objects.
+                // ravelin addition: view specific details of policy changes
+            },
+            {
                 from: "json.serviceName",
                 to: "gcp.audit.service_name",
                 type: "string",
