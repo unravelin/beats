@@ -158,6 +158,19 @@
       type: nested
       description: >
         Audit config changes within IAM policies.
+  - name: iap
+    type: group
+    description: >
+      Details of an IAP HTTP request.
+    fields:
+    - name: host
+      type: keyword
+      description: >
+        Host being called through the IAP.
+    - name: path
+      type: keyword
+      description: >
+        Path of the HTTP request going through the IAP.
   - name: service_name
     type: keyword
     description: >

@@ -216,6 +216,18 @@ function Audit(keep_original_message) {
                 // ravelin addition: view specific details of policy changes
             },
             {
+                from: "json.requestMetadata.requestAttributes.host",
+                to: "gcp.audit.iap.host",
+                type: "string",
+                // ravelin addition: host of IAP endpoint
+            },
+            {
+                from: "json.requestMetadata.requestAttributes.path",
+                to: "gcp.audit.iap.path",
+                type: "string",
+                // ravelin addition: path of IAP endpoint
+            },
+            {
                 from: "json.serviceName",
                 to: "gcp.audit.service_name",
                 type: "string",
