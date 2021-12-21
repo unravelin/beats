@@ -105,6 +105,11 @@ function Audit(keep_original_message) {
                 to: "gcp.cloud_armor.http_request.server_ip",
                 type: "ip"
             },
+            {
+                from: "json.httpRequest.referer",
+                to: "gcp.cloud_armor.http_request.referer",
+                type: "string"
+            },
         ],
         mode: "rename",
         ignore_missing: true,

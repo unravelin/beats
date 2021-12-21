@@ -44,6 +44,10 @@
       type: ip
       description: >
         The IP address of the server.
+    - name: referer
+      type: keyword
+      description: >
+        Referer HTTP header value.
   - name: enforced_security_policy
     type: group
     description: >
