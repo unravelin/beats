@@ -194,7 +194,7 @@ function Audit(keep_original_message) {
     var copyFields = new processor.Convert({
         fields: [
             {
-                from: "json.http_request.remote_ip",
+                from: "gcp.cloud_armor.http_request.remote_ip",
                 to: "source.ip",
                 type: "ip"
             },
