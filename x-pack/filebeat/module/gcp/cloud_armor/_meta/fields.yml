@@ -64,7 +64,7 @@
         Outcome from the policy (either ACCEPT or DENY).
         The action != outcome when the policy is in preview mode.
     - name: signature_ids
-      type: keyword
+      type: array
       description: >
         Array of signatures that matched the request.
     - name: priority
