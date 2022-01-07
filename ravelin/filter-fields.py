@@ -1,5 +1,5 @@
 # list of fields we want to keep
-keep = ["ecs", "beat", "cloud", "docker", "host", "kubernetes", "process", "log", "auditd", "elasticsearch", "kibana", "osquery", "gcp", "google_workspace", "misp"]
+keep = ["ecs", "cloud", "docker", "kubernetes", "kibana", "gcp", "google_workspace"] # log?, misp? osquery? elasticsearch? process? host?
 
 # opening rendered fields
 with open("../filebeat/build/fields/fields.all.yml") as file:
