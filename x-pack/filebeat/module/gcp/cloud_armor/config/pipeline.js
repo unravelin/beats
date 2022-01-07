@@ -2,7 +2,7 @@
 // or more contributor license agreements. Licensed under the Elastic License;
 // you may not use this file except in compliance with the Elastic License.
 
-function Audit(keep_original_message) {
+function CloudArmor(keep_original_message) {
     var processor = require("processor");
 
     // The pub/sub input writes the Stackdriver LogEntry object into the message
@@ -204,7 +204,7 @@ function Audit(keep_original_message) {
                 type: "string"
             },
             {
-                from: "json.http_request.user_agent",
+                from: "gcp.cloud_armor.http_request.user_agent",
                 to: "user_agent.original",
                 type: "string"
             },
@@ -218,6 +218,65 @@ function Audit(keep_original_message) {
         evt.Delete("json");
     };
 
+    // Convert some misc values into a slightly nicer format for analysis
+    var convertValues = function(evt) {
+        // 1. Convert backend name to remove identifier
+        var name = evt.Get("cloud.backend.name");
+        if (name !== null) {
+            var arr = name.split("-");
+            evt.Put("cloud.backend.name", arr.slice(2,arr.length-2).join("-"));
+        }
+
+        // 2. Aggregate signature_ids in common field
+        var preview_ids = evt.Get("gcp.cloud_armor.preview_security_policy.signature_ids");
+        var enforced_ids = evt.Get("gcp.cloud_armor.enforced_security_policy.signature_ids");
+
+        if (preview_ids !== null && preview_ids.length > 0) {
+            evt.Put("gcp.cloud_armor.signature_ids", preview_ids);
+        }
+        if (enforced_ids !== null && enforced_ids.length > 0) {
+            evt.Put("gcp.cloud_armor.signature_ids", enforced_ids);
+        }
+
+        // 3. Convert signature_ids into common threat type
+        var ids = evt.Get("gcp.cloud_armor.signature_ids");
+        if (ids !== null && ids.length > 0) {
+            var threats = [];
+            ids.forEach(function (item) {
+                var arr = item.split("-");
+                var rule = arr[arr.length -1];
+                switch (rule) {
+                    case "sqli":
+                        threats.push("SQLi");
+                        break;
+                    case "xss":
+                        threats.push("XSS");
+                        break;
+                    case "lfi":
+                        threats.push("LFI");
+                        break;
+                    case "rfi":
+                        threats.push("RFI");
+                        break;
+                    case "rce":
+                        threats.push("RCE");
+                        break;
+                    case "scannerdetection":
+                        threats.push("Scanner detection")
+                        break;
+                    case "cve":
+                        if (item === "owasp-crs-v030001-id044228-cve") {
+                            threats.push("Log4shell")
+                        } else {
+                            threats.push("CVE")
+                        }
+                        break;
+                }
+            });
+            evt.Put("gcp.cloud_armor.threats", threats);
+        }
+    }
+
     var pipeline = new processor.Chain()
         .Add(decodeJson)
         .Add(parseTimestamp)
@@ -229,6 +288,7 @@ function Audit(keep_original_message) {
         .Add(convertLogEntry)
         .Add(convertJsonPayload)
         .Add(copyFields)
+        .Add(convertValues)
         .Add(dropExtraFields)
         .Build();
 
@@ -237,13 +297,13 @@ function Audit(keep_original_message) {
     };
 }
 
-var audit;
+var pipeline;
 
 // Register params from configuration.
 function register(params) {
-    audit = new Audit(params.keep_original_message);
+    pipeline = new CloudArmor(params.keep_original_message);
 }
 
 function process(evt) {
-    return audit.process(evt);
+    return pipeline.process(evt);
 }
