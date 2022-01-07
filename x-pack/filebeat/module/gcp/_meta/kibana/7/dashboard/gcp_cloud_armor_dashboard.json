@@ -1,0 +1,94 @@
+{
+  "attributes": {
+    "description": "Overview of cloud armor events from Google Cloud.",
+    "hits": 0,
+    "kibanaSavedObjectMeta": {
+      "searchSourceJSON": "{\"query\":{\"language\":\"kuery\",\"query\":\"\"},\"filter\":[{\"query\":{\"bool\":{\"should\":[{\"exists\":{\"field\":\"gcp.cloud_armor.preview_security_policy.signature_ids\"}},{\"exists\":{\"field\":\"gcp.cloud_armor.enforced_security_policy.signature_ids\"}}]}},\"meta\":{\"type\":\"custom\",\"disabled\":false,\"negate\":false,\"alias\":\"OWASP rule violation\",\"key\":\"query\",\"indexRefName\":\"kibanaSavedObjectMeta.searchSourceJSON.filter[0].meta.index\"},\"$state\":{\"store\":\"appState\"}},{\"query\":{\"bool\":{\"must\":[{\"term\":{\"gcp.cloud_armor.preview_security_policy.action\":\"DENY\"}},{\"term\":{\"gcp.cloud_armor.enforced_security_policy.action\":\"ALLOW\"}}]}},\"meta\":{\"type\":\"custom\",\"disabled\":true,\"negate\":false,\"alias\":\"Preview policies\",\"key\":\"query\",\"indexRefName\":\"kibanaSavedObjectMeta.searchSourceJSON.filter[1].meta.index\"},\"$state\":{\"store\":\"appState\"}}]}"
+    },
+    "optionsJSON": "{\"useMargins\":true,\"syncColors\":false,\"hidePanelTitles\":false}",
+    "panelsJSON": "[{\"version\":\"7.15.1\",\"type\":\"map\",\"gridData\":{\"x\":0,\"y\":0,\"w\":23,\"h\":21,\"i\":\"82b10010-c8af-4dee-8424-86fae0c659bf\"},\"panelIndex\":\"82b10010-c8af-4dee-8424-86fae0c659bf\",\"embeddableConfig\":{\"mapCenter\":{\"lat\":42.11398,\"lon\":9.4378,\"zoom\":1.76},\"mapBuffer\":{\"minLon\":-180,\"minLat\":-66.51326,\"maxLon\":180,\"maxLat\":85.05113},\"isLayerTOCOpen\":false,\"openTOCDetails\":[],\"hiddenLayers\":[],\"enhancements\":{}},\"panelRefName\":\"panel_82b10010-c8af-4dee-8424-86fae0c659bf\"},{\"version\":\"7.15.1\",\"type\":\"lens\",\"gridData\":{\"x\":23,\"y\":0,\"w\":11,\"h\":11,\"i\":\"1ac1dee1-10a0-46f9-8324-5eabbf0d38e9\"},\"panelIndex\":\"1ac1dee1-10a0-46f9-8324-5eabbf0d38e9\",\"embeddableConfig\":{\"enhancements\":{}},\"panelRefName\":\"panel_1ac1dee1-10a0-46f9-8324-5eabbf0d38e9\"},{\"version\":\"7.15.1\",\"type\":\"lens\",\"gridData\":{\"x\":34,\"y\":0,\"w\":8,\"h\":11,\"i\":\"a11b8e2c-f179-427f-aabd-36e3d7f9e8f2\"},\"panelIndex\":\"a11b8e2c-f179-427f-aabd-36e3d7f9e8f2\",\"embeddableConfig\":{\"enhancements\":{}},\"panelRefName\":\"panel_a11b8e2c-f179-427f-aabd-36e3d7f9e8f2\"},{\"version\":\"7.15.1\",\"type\":\"lens\",\"gridData\":{\"x\":42,\"y\":0,\"w\":6,\"h\":10,\"i\":\"c6889f96-c808-463a-b722-562b3f1f4a5c\"},\"panelIndex\":\"c6889f96-c808-463a-b722-562b3f1f4a5c\",\"embeddableConfig\":{\"enhancements\":{},\"hidePanelTitles\":false},\"panelRefName\":\"panel_c6889f96-c808-463a-b722-562b3f1f4a5c\"},{\"version\":\"7.15.1\",\"type\":\"lens\",\"gridData\":{\"x\":42,\"y\":10,\"w\":6,\"h\":11,\"i\":\"3ad48272-4c0a-4d64-876e-028f1c617e8e\"},\"panelIndex\":\"3ad48272-4c0a-4d64-876e-028f1c617e8e\",\"embeddableConfig\":{\"attributes\":{\"title\":\"\",\"visualizationType\":\"lnsPie\",\"type\":\"lens\",\"references\":[{\"name\":\"panel_3ad48272-4c0a-4d64-876e-028f1c617e8e\",\"type\":\"lens\",\"id\":\"e21c0990-63ed-11ec-8f4a-71bba2608682\"},{\"name\":\"panel_3ad48272-4c0a-4d64-876e-028f1c617e8e\",\"type\":\"lens\",\"id\":\"e21c0990-63ed-11ec-8f4a-71bba2608682\"},{\"type\":\"index-pattern\",\"id\":\"filebeat-*\",\"name\":\"indexpattern-datasource-current-indexpattern\"},{\"type\":\"index-pattern\",\"id\":\"filebeat-*\",\"name\":\"indexpattern-datasource-layer-169d81e9-bbb5-4141-8ff0-85394e09adbc\"}],\"state\":{\"visualization\":{\"shape\":\"donut\",\"layers\":[{\"layerId\":\"169d81e9-bbb5-4141-8ff0-85394e09adbc\",\"groups\":[\"18da0799-0b73-4077-95c5-eb024c6f328f\"],\"metric\":\"5a8c22fb-1a48-4283-b382-0537f9a8e61a\",\"numberDisplay\":\"percent\",\"categoryDisplay\":\"default\",\"legendDisplay\":\"default\",\"nestedLegend\":false,\"layerType\":\"data\"}]},\"query\":{\"query\":\"\",\"language\":\"kuery\"},\"filters\":[],\"datasourceStates\":{\"indexpattern\":{\"layers\":{\"169d81e9-bbb5-4141-8ff0-85394e09adbc\":{\"columns\":{\"18da0799-0b73-4077-95c5-eb024c6f328f\":{\"label\":\"Top values of source.geo.country_name\",\"dataType\":\"string\",\"operationType\":\"terms\",\"scale\":\"ordinal\",\"sourceField\":\"source.geo.country_name\",\"isBucketed\":true,\"params\":{\"size\":5,\"orderBy\":{\"type\":\"column\",\"columnId\":\"5a8c22fb-1a48-4283-b382-0537f9a8e61a\"},\"orderDirection\":\"desc\",\"otherBucket\":true,\"missingBucket\":false}},\"5a8c22fb-1a48-4283-b382-0537f9a8e61a\":{\"label\":\"Count of records\",\"dataType\":\"number\",\"operationType\":\"count\",\"isBucketed\":false,\"scale\":\"ratio\",\"sourceField\":\"Records\"}},\"columnOrder\":[\"18da0799-0b73-4077-95c5-eb024c6f328f\",\"5a8c22fb-1a48-4283-b382-0537f9a8e61a\"],\"incompleteColumns\":{}}}}}}},\"enhancements\":{}},\"panelRefName\":\"panel_3ad48272-4c0a-4d64-876e-028f1c617e8e\"},{\"version\":\"7.15.1\",\"type\":\"lens\",\"gridData\":{\"x\":23,\"y\":11,\"w\":11,\"h\":10,\"i\":\"c452dd28-c2f5-480c-bd41-1fbffabace71\"},\"panelIndex\":\"c452dd28-c2f5-480c-bd41-1fbffabace71\",\"embeddableConfig\":{\"enhancements\":{}},\"panelRefName\":\"panel_c452dd28-c2f5-480c-bd41-1fbffabace71\"},{\"version\":\"7.15.1\",\"type\":\"visualization\",\"gridData\":{\"x\":34,\"y\":11,\"w\":8,\"h\":10,\"i\":\"4288d429-e776-44d3-b669-dd98b8a43c65\"},\"panelIndex\":\"4288d429-e776-44d3-b669-dd98b8a43c65\",\"embeddableConfig\":{\"enhancements\":{}},\"panelRefName\":\"panel_4288d429-e776-44d3-b669-dd98b8a43c65\"},{\"version\":\"7.15.1\",\"type\":\"search\",\"gridData\":{\"x\":0,\"y\":21,\"w\":48,\"h\":12,\"i\":\"ea213fd7-c1aa-47da-ae54-1bf41988c2e8\"},\"panelIndex\":\"ea213fd7-c1aa-47da-ae54-1bf41988c2e8\",\"embeddableConfig\":{\"hidePanelTitles\":false,\"enhancements\":{}},\"title\":\"Cloud armor logs\",\"panelRefName\":\"panel_ea213fd7-c1aa-47da-ae54-1bf41988c2e8\"}]",
+    "timeRestore": false,
+    "title": "GCP Cloud armor",
+    "version": 1
+  },
+  "coreMigrationVersion": "7.15.1",
+  "id": "f87fa4d0-6285-11ec-82cd-4f28cf7a54ec",
+  "migrationVersion": {
+    "dashboard": "7.15.0"
+  },
+  "references": [
+    {
+      "id": "filebeat-*",
+      "name": "kibanaSavedObjectMeta.searchSourceJSON.filter[0].meta.index",
+      "type": "index-pattern"
+    },
+    {
+      "id": "filebeat-*",
+      "name": "kibanaSavedObjectMeta.searchSourceJSON.filter[1].meta.index",
+      "type": "index-pattern"
+    },
+    {
+      "id": "f7346780-6282-11ec-82cd-4f28cf7a54ec",
+      "name": "82b10010-c8af-4dee-8424-86fae0c659bf:panel_82b10010-c8af-4dee-8424-86fae0c659bf",
+      "type": "map"
+    },
+    {
+      "id": "b3952150-6402-11ec-8f4a-71bba2608682",
+      "name": "1ac1dee1-10a0-46f9-8324-5eabbf0d38e9:panel_1ac1dee1-10a0-46f9-8324-5eabbf0d38e9",
+      "type": "lens"
+    },
+    {
+      "id": "1f803a30-63f4-11ec-8f4a-71bba2608682",
+      "name": "a11b8e2c-f179-427f-aabd-36e3d7f9e8f2:panel_a11b8e2c-f179-427f-aabd-36e3d7f9e8f2",
+      "type": "lens"
+    },
+    {
+      "id": "c927a220-6364-11ec-b6a9-c7dcce512bd0",
+      "name": "c6889f96-c808-463a-b722-562b3f1f4a5c:panel_c6889f96-c808-463a-b722-562b3f1f4a5c",
+      "type": "lens"
+    },
+    {
+      "id": "e21c0990-63ed-11ec-8f4a-71bba2608682",
+      "name": "3ad48272-4c0a-4d64-876e-028f1c617e8e:panel_3ad48272-4c0a-4d64-876e-028f1c617e8e",
+      "type": "lens"
+    },
+    {
+      "id": "e21c0990-63ed-11ec-8f4a-71bba2608682",
+      "name": "3ad48272-4c0a-4d64-876e-028f1c617e8e:panel_3ad48272-4c0a-4d64-876e-028f1c617e8e",
+      "type": "lens"
+    },
+    {
+      "id": "e21c0990-63ed-11ec-8f4a-71bba2608682",
+      "name": "3ad48272-4c0a-4d64-876e-028f1c617e8e:panel_3ad48272-4c0a-4d64-876e-028f1c617e8e",
+      "type": "lens"
+    },
+    {
+      "id": "d29121e0-636b-11ec-b6a9-c7dcce512bd0",
+      "name": "c452dd28-c2f5-480c-bd41-1fbffabace71:panel_c452dd28-c2f5-480c-bd41-1fbffabace71",
+      "type": "lens"
+    },
+    {
+      "id": "bcfd1610-63eb-11ec-8f4a-71bba2608682",
+      "name": "4288d429-e776-44d3-b669-dd98b8a43c65:panel_4288d429-e776-44d3-b669-dd98b8a43c65",
+      "type": "visualization"
+    },
+    {
+      "id": "f513fbb0-6286-11ec-82cd-4f28cf7a54ec",
+      "name": "ea213fd7-c1aa-47da-ae54-1bf41988c2e8:panel_ea213fd7-c1aa-47da-ae54-1bf41988c2e8",
+      "type": "search"
+    },
+    {
+      "id": "gcp",
+      "name": "tag-gcp",
+      "type": "tag"
+    },
+    {
+      "id": "cloud_armor",
+      "name": "tag-cloud_armor",
+      "type": "tag"
+    }
+  ],
+  "type": "dashboard",
+  "updated_at": "2022-01-04T16:06:08.958Z",
+  "version": "Wzg2MzA3LDUyXQ=="
+}

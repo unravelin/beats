@@ -138,7 +138,7 @@
             }
         ],
         "timeRestore": false,
-        "title": "[Filebeat GCP] Audit",
+        "title": "GCP Audit",
         "version": 1
     },
     "coreMigrationVersion": "8.0.0",
@@ -181,6 +181,16 @@
             "id": "d88364c0-73a1-11ea-a345-f985c61fe654",
             "name": "95ebbda8-9b00-4b23-b116-72569ea031e3:panel_95ebbda8-9b00-4b23-b116-72569ea031e3",
             "type": "search"
+        },
+        {
+            "id": "gcp",
+            "name": "tag-gcp",
+            "type": "tag"
+        },
+        {
+            "id": "audit",
+            "name": "tag-audit",
+            "type": "tag"
         }
     ],
     "type": "dashboard",

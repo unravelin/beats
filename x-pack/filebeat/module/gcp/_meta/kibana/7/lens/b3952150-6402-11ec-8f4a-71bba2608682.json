@@ -1,0 +1,156 @@
+{
+  "attributes": {
+    "description": "",
+    "state": {
+      "datasourceStates": {
+        "indexpattern": {
+          "layers": {
+            "61a3a692-5598-443b-93c3-64f63e376214": {
+              "columnOrder": [
+                "4bca844e-b6d7-432b-80bd-d65809608f1f",
+                "2cbcc73b-eec7-4875-bce3-71ea23307a8a",
+                "e644a05d-70fc-4223-b789-81ca0cebfab6"
+              ],
+              "columns": {
+                "2cbcc73b-eec7-4875-bce3-71ea23307a8a": {
+                  "customLabel": true,
+                  "dataType": "number",
+                  "filter": {
+                    "language": "kuery",
+                    "query": "gcp.cloud_armor.enforced_security_policy.action : \"DENY\""
+                  },
+                  "isBucketed": false,
+                  "label": "Denied requests",
+                  "operationType": "count",
+                  "params": {},
+                  "scale": "ratio",
+                  "sourceField": "Records"
+                },
+                "4bca844e-b6d7-432b-80bd-d65809608f1f": {
+                  "dataType": "date",
+                  "isBucketed": true,
+                  "label": "@timestamp",
+                  "operationType": "date_histogram",
+                  "params": {
+                    "interval": "auto"
+                  },
+                  "scale": "interval",
+                  "sourceField": "@timestamp"
+                },
+                "e644a05d-70fc-4223-b789-81ca0cebfab6": {
+                  "customLabel": true,
+                  "dataType": "number",
+                  "filter": {
+                    "language": "kuery",
+                    "query": "gcp.cloud_armor.preview_security_policy.action : \"DENY\""
+                  },
+                  "isBucketed": false,
+                  "label": "Denied requests (preview)",
+                  "operationType": "count",
+                  "scale": "ratio",
+                  "sourceField": "Records"
+                }
+              },
+              "incompleteColumns": {}
+            }
+          }
+        }
+      },
+      "filters": [],
+      "query": {
+        "language": "kuery",
+        "query": ""
+      },
+      "visualization": {
+        "axisTitlesVisibilitySettings": {
+          "x": true,
+          "yLeft": true,
+          "yRight": true
+        },
+        "curveType": "CURVE_MONOTONE_X",
+        "fittingFunction": "None",
+        "gridlinesVisibilitySettings": {
+          "x": true,
+          "yLeft": true,
+          "yRight": true
+        },
+        "labelsOrientation": {
+          "x": 0,
+          "yLeft": 0,
+          "yRight": 0
+        },
+        "layers": [
+          {
+            "accessors": [
+              "2cbcc73b-eec7-4875-bce3-71ea23307a8a",
+              "e644a05d-70fc-4223-b789-81ca0cebfab6"
+            ],
+            "layerId": "61a3a692-5598-443b-93c3-64f63e376214",
+            "layerType": "data",
+            "position": "top",
+            "seriesType": "area",
+            "showGridlines": false,
+            "xAccessor": "4bca844e-b6d7-432b-80bd-d65809608f1f",
+            "yConfig": [
+              {
+                "axisMode": "auto",
+                "forAccessor": "e644a05d-70fc-4223-b789-81ca0cebfab6"
+              }
+            ]
+          }
+        ],
+        "legend": {
+          "isInside": true,
+          "isVisible": true,
+          "position": "right"
+        },
+        "preferredSeriesType": "area",
+        "tickLabelsVisibilitySettings": {
+          "x": true,
+          "yLeft": true,
+          "yRight": true
+        },
+        "valueLabels": "hide",
+        "valuesInLegend": true,
+        "yLeftExtent": {
+          "mode": "full"
+        },
+        "yRightExtent": {
+          "mode": "full"
+        }
+      }
+    },
+    "title": "Request denied by security policy",
+    "visualizationType": "lnsXY"
+  },
+  "coreMigrationVersion": "7.15.1",
+  "id": "b3952150-6402-11ec-8f4a-71bba2608682",
+  "migrationVersion": {
+    "lens": "7.15.0"
+  },
+  "references": [
+    {
+      "id": "filebeat-*",
+      "name": "indexpattern-datasource-current-indexpattern",
+      "type": "index-pattern"
+    },
+    {
+      "id": "filebeat-*",
+      "name": "indexpattern-datasource-layer-61a3a692-5598-443b-93c3-64f63e376214",
+      "type": "index-pattern"
+    },
+    {
+      "id": "cloud_armor",
+      "name": "tag-ref-cloud_armor",
+      "type": "tag"
+    },
+    {
+      "id": "gcp",
+      "name": "tag-ref-gcp",
+      "type": "tag"
+    }
+  ],
+  "type": "lens",
+  "updated_at": "2021-12-23T15:14:04.012Z",
+  "version": "Wzg1NDQ3LDUyXQ=="
+}

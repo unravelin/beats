@@ -1,0 +1,134 @@
+{
+  "attributes": {
+    "description": "",
+    "state": {
+      "datasourceStates": {
+        "indexpattern": {
+          "layers": {
+            "3bb8a764-ddaa-492e-aa87-2b37359451e8": {
+              "columnOrder": [
+                "5731410b-7ef7-49bd-b61a-7299cfc7e700",
+                "f265972b-b576-434b-a34c-8aae6eff4d4f"
+              ],
+              "columns": {
+                "5731410b-7ef7-49bd-b61a-7299cfc7e700": {
+                  "customLabel": true,
+                  "dataType": "string",
+                  "isBucketed": true,
+                  "label": "Remote IP frequency",
+                  "operationType": "terms",
+                  "params": {
+                    "missingBucket": false,
+                    "orderBy": {
+                      "columnId": "f265972b-b576-434b-a34c-8aae6eff4d4f",
+                      "type": "column"
+                    },
+                    "orderDirection": "desc",
+                    "otherBucket": false,
+                    "size": 20
+                  },
+                  "scale": "ordinal",
+                  "sourceField": "gcp.cloud_armor.http_request.remote_ip"
+                },
+                "f265972b-b576-434b-a34c-8aae6eff4d4f": {
+                  "dataType": "number",
+                  "isBucketed": false,
+                  "label": "Count of records",
+                  "operationType": "count",
+                  "scale": "ratio",
+                  "sourceField": "Records"
+                }
+              },
+              "incompleteColumns": {}
+            }
+          }
+        }
+      },
+      "filters": [],
+      "query": {
+        "language": "kuery",
+        "query": ""
+      },
+      "visualization": {
+        "axisTitlesVisibilitySettings": {
+          "x": true,
+          "yLeft": true,
+          "yRight": true
+        },
+        "fittingFunction": "None",
+        "gridlinesVisibilitySettings": {
+          "x": true,
+          "yLeft": true,
+          "yRight": true
+        },
+        "labelsOrientation": {
+          "x": 0,
+          "yLeft": 0,
+          "yRight": 0
+        },
+        "layers": [
+          {
+            "accessors": [
+              "f265972b-b576-434b-a34c-8aae6eff4d4f"
+            ],
+            "layerId": "3bb8a764-ddaa-492e-aa87-2b37359451e8",
+            "layerType": "data",
+            "position": "top",
+            "seriesType": "bar_stacked",
+            "showGridlines": false,
+            "xAccessor": "5731410b-7ef7-49bd-b61a-7299cfc7e700"
+          }
+        ],
+        "legend": {
+          "isVisible": true,
+          "position": "right"
+        },
+        "preferredSeriesType": "bar_stacked",
+        "tickLabelsVisibilitySettings": {
+          "x": true,
+          "yLeft": true,
+          "yRight": true
+        },
+        "valueLabels": "hide",
+        "yLeftExtent": {
+          "mode": "full"
+        },
+        "yRightExtent": {
+          "mode": "full"
+        }
+      }
+    },
+    "title": "Most active remote IPs",
+    "visualizationType": "lnsXY"
+  },
+  "coreMigrationVersion": "7.15.1",
+  "id": "d29121e0-636b-11ec-b6a9-c7dcce512bd0",
+  "migrationVersion": {
+    "lens": "7.15.0"
+  },
+  "references": [
+    {
+      "id": "filebeat-*",
+      "name": "indexpattern-datasource-current-indexpattern",
+      "type": "index-pattern"
+    },
+    {
+      "id": "filebeat-*",
+      "name": "indexpattern-datasource-layer-3bb8a764-ddaa-492e-aa87-2b37359451e8",
+      "type": "index-pattern"
+    },
+    {
+      "id": "cloud_armor",
+      "name": "tag-ref-cloud_armor",
+      "type": "tag"
+    },
+    {
+      "id": "gcp",
+      "name": "tag-ref-gcp",
+      "type": "tag"
+    }
+  ],
+  "type": "lens",
+  "updated_at": "2021-12-23T12:41:26.440Z",
+  "version": "Wzg1MzgzLDUyXQ=="
+}
