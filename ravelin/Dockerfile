@@ -11,6 +11,11 @@ RUN rm -rf /usr/share/filebeat/module/gcp/audit
 
 # Copying new module files into image
 COPY x-pack/filebeat/module/gcp/audit /usr/share/filebeat/module/gcp/audit
+COPY x-pack/filebeat/module/gcp/cloud_armor /usr/share/filebeat/module/gcp/cloud_armor
+
+# Removing all visualisations we don't want (only keeping GCP for now)
+RUN rm -rf /usr/share/filebeat/kibana
+COPY x-pack/filebeat/module/gcp/_meta/kibana /usr/share/filebeat/kibana
 
 # Copying scoped fields
 COPY ravelin/fields.yml fields.yml
