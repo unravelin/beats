@@ -1,0 +1,13 @@
+{
+  "attributes": {
+    "color": "#d9ed92",
+    "description": "",
+    "name": "gcp"
+  },
+  "coreMigrationVersion": "7.15.1",
+  "id": "gcp",
+  "references": [],
+  "type": "tag",
+  "updated_at": "2021-12-21T17:25:07.817Z",
+  "version": "Wzg1NTU3LDUyXQ=="
+}

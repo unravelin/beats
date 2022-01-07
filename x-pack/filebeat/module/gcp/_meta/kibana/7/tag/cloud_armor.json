@@ -1,0 +1,13 @@
+{
+  "attributes": {
+    "color": "#b5e48c",
+    "description": "",
+    "name": "cloud_armor"
+  },
+  "coreMigrationVersion": "7.15.1",
+  "id": "cloud_armor",
+  "references": [],
+  "type": "tag",
+  "updated_at": "2021-12-21T17:25:03.447Z",
+  "version": "Wzg1NTU2LDUyXQ=="
+}

@@ -1,0 +1,37 @@
+{
+  "attributes": {
+    "description": "",
+    "kibanaSavedObjectMeta": {
+      "searchSourceJSON": "{\"query\":{\"query\":\"\",\"language\":\"kuery\"},\"filter\":[],\"indexRefName\":\"kibanaSavedObjectMeta.searchSourceJSON.index\"}"
+    },
+    "title": "Attack vectors",
+    "uiStateJSON": "{}",
+    "version": 1,
+    "visState": "{\"title\":\"Attack vectors\",\"type\":\"tagcloud\",\"aggs\":[{\"id\":\"1\",\"enabled\":true,\"type\":\"count\",\"params\":{},\"schema\":\"metric\"},{\"id\":\"2\",\"enabled\":true,\"type\":\"terms\",\"params\":{\"field\":\"gcp.cloud_armor.threats\",\"orderBy\":\"1\",\"order\":\"desc\",\"size\":5,\"otherBucket\":false,\"otherBucketLabel\":\"Other\",\"missingBucket\":false,\"missingBucketLabel\":\"Missing\",\"customLabel\":\"Attack vectors\"},\"schema\":\"segment\"}],\"params\":{\"scale\":\"linear\",\"orientation\":\"single\",\"minFontSize\":16,\"maxFontSize\":29,\"showLabel\":true,\"palette\":{\"type\":\"palette\",\"name\":\"default\"}}}"
+  },
+  "coreMigrationVersion": "7.15.1",
+  "id": "bcfd1610-63eb-11ec-8f4a-71bba2608682",
+  "migrationVersion": {
+    "visualization": "7.14.0"
+  },
+  "references": [
+    {
+      "id": "filebeat-*",
+      "name": "kibanaSavedObjectMeta.searchSourceJSON.index",
+      "type": "index-pattern"
+    },
+    {
+      "id": "gcp",
+      "name": "tag-gcp",
+      "type": "tag"
+    },
+    {
+      "id": "cloud_armor",
+      "name": "tag-cloud_armor",
+      "type": "tag"
+    }
+  ],
+  "type": "visualization",
+  "updated_at": "2021-12-23T13:11:05.503Z",
+  "version": "Wzg1NDgwLDUyXQ=="
+}

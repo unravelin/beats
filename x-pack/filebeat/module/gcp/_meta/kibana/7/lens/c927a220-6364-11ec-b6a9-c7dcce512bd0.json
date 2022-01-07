@@ -1,0 +1,102 @@
+{
+  "attributes": {
+    "description": "A pie chart showing the distribution of security policy violations by backend.",
+    "state": {
+      "datasourceStates": {
+        "indexpattern": {
+          "layers": {
+            "0f13a6ff-081b-4dbe-90d0-f1bf668c5eeb": {
+              "columnOrder": [
+                "ab8f7c03-94dd-43a4-9c51-37e8f5802ab4",
+                "b2932d2a-b976-4345-a07a-86b727c8baac"
+              ],
+              "columns": {
+                "ab8f7c03-94dd-43a4-9c51-37e8f5802ab4": {
+                  "dataType": "string",
+                  "isBucketed": true,
+                  "label": "Top values of cloud.backend.name",
+                  "operationType": "terms",
+                  "params": {
+                    "missingBucket": false,
+                    "orderBy": {
+                      "columnId": "b2932d2a-b976-4345-a07a-86b727c8baac",
+                      "type": "column"
+                    },
+                    "orderDirection": "desc",
+                    "otherBucket": true,
+                    "size": 5
+                  },
+                  "scale": "ordinal",
+                  "sourceField": "cloud.backend.name"
+                },
+                "b2932d2a-b976-4345-a07a-86b727c8baac": {
+                  "dataType": "number",
+                  "isBucketed": false,
+                  "label": "Count of records",
+                  "operationType": "count",
+                  "scale": "ratio",
+                  "sourceField": "Records"
+                }
+              },
+              "incompleteColumns": {}
+            }
+          }
+        }
+      },
+      "filters": [],
+      "query": {
+        "language": "kuery",
+        "query": ""
+      },
+      "visualization": {
+        "layers": [
+          {
+            "categoryDisplay": "default",
+            "groups": [
+              "ab8f7c03-94dd-43a4-9c51-37e8f5802ab4"
+            ],
+            "layerId": "0f13a6ff-081b-4dbe-90d0-f1bf668c5eeb",
+            "layerType": "data",
+            "legendDisplay": "default",
+            "metric": "b2932d2a-b976-4345-a07a-86b727c8baac",
+            "nestedLegend": false,
+            "numberDisplay": "percent"
+          }
+        ],
+        "shape": "donut"
+      }
+    },
+    "title": "Target backends ",
+    "visualizationType": "lnsPie"
+  },
+  "coreMigrationVersion": "7.15.1",
+  "id": "c927a220-6364-11ec-b6a9-c7dcce512bd0",
+  "migrationVersion": {
+    "lens": "7.15.0"
+  },
+  "references": [
+    {
+      "id": "filebeat-*",
+      "name": "indexpattern-datasource-current-indexpattern",
+      "type": "index-pattern"
+    },
+    {
+      "id": "filebeat-*",
+      "name": "indexpattern-datasource-layer-0f13a6ff-081b-4dbe-90d0-f1bf668c5eeb",
+      "type": "index-pattern"
+    },
+    {
+      "id": "gcp",
+      "name": "tag-ref-gcp",
+      "type": "tag"
+    },
+    {
+      "id": "cloud_armor",
+      "name": "tag-ref-cloud_armor",
+      "type": "tag"
+    }
+  ],
+  "type": "lens",
+  "updated_at": "2021-12-22T20:53:29.526Z",
+  "version": "Wzg1NTA0LDUyXQ=="
+}

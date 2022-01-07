@@ -1,0 +1,44 @@
+{
+  "attributes": {
+    "columns": [
+      "cloud.project.id",
+      "gcp.cloud_armor.enforced_security_policy.name",
+      "gcp.cloud_armor.http_request.remote_ip",
+      "gcp.cloud_armor.http_request.user_agent",
+      "source.geo.country_name"
+    ],
+    "description": "",
+    "hits": 0,
+    "kibanaSavedObjectMeta": {
+      "searchSourceJSON": "{\"query\":{\"language\":\"kuery\",\"query\":\"event.dataset : \\\"gcp.cloud_armor\\\" \"},\"filter\":[{\"$state\":{\"store\":\"appState\"},\"meta\":{\"alias\":null,\"disabled\":false,\"key\":\"event.dataset\",\"negate\":false,\"params\":{\"query\":\"gcp.cloud_armor\"},\"type\":\"phrase\",\"indexRefName\":\"kibanaSavedObjectMeta.searchSourceJSON.filter[0].meta.index\"},\"query\":{\"match_phrase\":{\"event.dataset\":\"gcp.cloud_armor\"}}}],\"indexRefName\":\"kibanaSavedObjectMeta.searchSourceJSON.index\"}"
+    },
+    "sort": [
+      [
+        "@timestamp",
+        "desc"
+      ]
+    ],
+    "title": "WAF",
+    "version": 1
+  },
+  "coreMigrationVersion": "7.15.1",
+  "id": "f513fbb0-6286-11ec-82cd-4f28cf7a54ec",
+  "migrationVersion": {
+    "search": "7.9.3"
+  },
+  "references": [
+    {
+      "id": "filebeat-*",
+      "name": "kibanaSavedObjectMeta.searchSourceJSON.index",
+      "type": "index-pattern"
+    },
+    {
+      "id": "filebeat-*",
+      "name": "kibanaSavedObjectMeta.searchSourceJSON.filter[0].meta.index",
+      "type": "index-pattern"
+    }
+  ],
+  "type": "search",
+  "updated_at": "2021-12-23T14:53:19.406Z",
+  "version": "Wzg1MzkyLDUyXQ=="
+}

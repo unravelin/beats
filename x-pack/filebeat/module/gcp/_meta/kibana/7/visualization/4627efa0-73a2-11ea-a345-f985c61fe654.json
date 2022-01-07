@@ -156,6 +156,11 @@
             "id": "d88364c0-73a1-11ea-a345-f985c61fe654",
             "name": "search_0",
             "type": "search"
+        },
+        {
+            "id": "gcp",
+            "name": "tag-ref-gcp",
+            "type": "tag"
         }
     ],
     "type": "visualization",

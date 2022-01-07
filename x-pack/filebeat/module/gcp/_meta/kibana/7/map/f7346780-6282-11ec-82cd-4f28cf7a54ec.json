@@ -1,0 +1,24 @@
+{
+  "attributes": {
+    "description": "",
+    "layerListJSON": "[{\"sourceDescriptor\":{\"type\":\"EMS_TMS\",\"isAutoSelect\":true},\"id\":\"7e3b6301-3c2b-4b4d-a019-ef1ccd308595\",\"label\":null,\"minZoom\":0,\"maxZoom\":24,\"alpha\":1,\"visible\":true,\"style\":{\"type\":\"TILE\"},\"includeInFitToBounds\":true,\"type\":\"VECTOR_TILE\"},{\"sourceDescriptor\":{\"geoField\":\"source.geo.location\",\"filterByMapBounds\":true,\"scalingType\":\"CLUSTERS\",\"id\":\"f551a470-7642-4758-bbb9-d9833bf5b90d\",\"type\":\"ES_SEARCH\",\"applyGlobalQuery\":true,\"applyGlobalTime\":true,\"tooltipProperties\":[],\"sortField\":\"\",\"sortOrder\":\"desc\",\"topHitsSplitField\":\"\",\"topHitsSize\":1,\"indexPatternRefName\":\"layer_1_source_index_pattern\"},\"id\":\"169f00f0-fd36-4b96-8072-045f9dec726d\",\"label\":null,\"minZoom\":0,\"maxZoom\":24,\"alpha\":0.75,\"visible\":true,\"style\":{\"type\":\"VECTOR\",\"properties\":{\"icon\":{\"type\":\"STATIC\",\"options\":{\"value\":\"marker\"}},\"fillColor\":{\"type\":\"STATIC\",\"options\":{\"color\":\"#54B399\"}},\"lineColor\":{\"type\":\"STATIC\",\"options\":{\"color\":\"#41937c\"}},\"lineWidth\":{\"type\":\"STATIC\",\"options\":{\"size\":1}},\"iconSize\":{\"type\":\"STATIC\",\"options\":{\"size\":6}},\"iconOrientation\":{\"type\":\"STATIC\",\"options\":{\"orientation\":0}},\"labelText\":{\"type\":\"STATIC\",\"options\":{\"value\":\"\"}},\"labelColor\":{\"type\":\"STATIC\",\"options\":{\"color\":\"#FFFFFF\"}},\"labelSize\":{\"type\":\"STATIC\",\"options\":{\"size\":14}},\"labelBorderColor\":{\"type\":\"STATIC\",\"options\":{\"color\":\"#000000\"}},\"symbolizeAs\":{\"options\":{\"value\":\"circle\"}},\"labelBorderSize\":{\"options\":{\"size\":\"SMALL\"}}},\"isTimeAware\":true},\"includeInFitToBounds\":true,\"type\":\"BLENDED_VECTOR\",\"joins\":[],\"query\":{\"query\":\"event.dataset:\\\"gcp.cloud_armor\\\"\",\"language\":\"kuery\"}}]",
+    "mapStateJSON": "{\"zoom\":3.04,\"center\":{\"lon\":20.01585,\"lat\":45.3661},\"timeFilters\":{\"from\":\"now-7d\",\"to\":\"now\"},\"refreshConfig\":{\"isPaused\":true,\"interval\":0},\"query\":{\"language\":\"kuery\",\"query\":\"\"},\"filters\":[],\"settings\":{\"autoFitToDataBounds\":false,\"backgroundColor\":\"#1d1e24\",\"disableInteractive\":false,\"disableTooltipControl\":false,\"hideToolbarOverlay\":false,\"hideLayerControl\":false,\"hideViewControl\":false,\"initialLocation\":\"LAST_SAVED_LOCATION\",\"fixedLocation\":{\"lat\":0,\"lon\":0,\"zoom\":2},\"browserLocation\":{\"zoom\":2},\"maxZoom\":24,\"minZoom\":0,\"showScaleControl\":false,\"showSpatialFilters\":true,\"showTimesliderToggleButton\":true,\"spatialFiltersAlpa\":0.3,\"spatialFiltersFillColor\":\"#DA8B45\",\"spatialFiltersLineColor\":\"#DA8B45\"}}",
+    "title": "Security policy violation map",
+    "uiStateJSON": "{\"isLayerTOCOpen\":true,\"openTOCDetails\":[]}"
+  },
+  "coreMigrationVersion": "7.15.1",
+  "id": "f7346780-6282-11ec-82cd-4f28cf7a54ec",
+  "migrationVersion": {
+    "map": "7.14.0"
+  },
+  "references": [
+    {
+      "id": "filebeat-*",
+      "name": "layer_1_source_index_pattern",
+      "type": "index-pattern"
+    }
+  ],
+  "type": "map",
+  "updated_at": "2021-12-22T21:45:47.100Z",
+  "version": "Wzg1NTM4LDUyXQ=="
+}

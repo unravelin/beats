@@ -1,0 +1,123 @@
+{
+  "attributes": {
+    "description": "",
+    "state": {
+      "datasourceStates": {
+        "indexpattern": {
+          "layers": {
+            "3520eaad-d035-49d4-be63-2cfc14bfbe16": {
+              "columnOrder": [
+                "51aff92f-a32f-4b19-82a0-dd831ea9ec82",
+                "71f80766-47ee-4ab4-bbf5-ac6197aaa4b1"
+              ],
+              "columns": {
+                "51aff92f-a32f-4b19-82a0-dd831ea9ec82": {
+                  "dataType": "string",
+                  "isBucketed": true,
+                  "label": "Top values of cloud.project.id",
+                  "operationType": "terms",
+                  "params": {
+                    "missingBucket": false,
+                    "orderBy": {
+                      "columnId": "71f80766-47ee-4ab4-bbf5-ac6197aaa4b1",
+                      "type": "column"
+                    },
+                    "orderDirection": "desc",
+                    "otherBucket": true,
+                    "size": 5
+                  },
+                  "scale": "ordinal",
+                  "sourceField": "cloud.project.id"
+                },
+                "71f80766-47ee-4ab4-bbf5-ac6197aaa4b1": {
+                  "dataType": "number",
+                  "isBucketed": false,
+                  "label": "Count of records",
+                  "operationType": "count",
+                  "scale": "ratio",
+                  "sourceField": "Records"
+                }
+              },
+              "incompleteColumns": {}
+            }
+          }
+        }
+      },
+      "filters": [],
+      "query": {
+        "language": "kuery",
+        "query": ""
+      },
+      "visualization": {
+        "axisTitlesVisibilitySettings": {
+          "x": true,
+          "yLeft": true,
+          "yRight": true
+        },
+        "fittingFunction": "None",
+        "gridlinesVisibilitySettings": {
+          "x": true,
+          "yLeft": true,
+          "yRight": true
+        },
+        "labelsOrientation": {
+          "x": 0,
+          "yLeft": 0,
+          "yRight": 0
+        },
+        "layers": [
+          {
+            "accessors": [
+              "71f80766-47ee-4ab4-bbf5-ac6197aaa4b1"
+            ],
+            "layerId": "3520eaad-d035-49d4-be63-2cfc14bfbe16",
+            "layerType": "data",
+            "position": "top",
+            "seriesType": "bar_stacked",
+            "showGridlines": false,
+            "xAccessor": "51aff92f-a32f-4b19-82a0-dd831ea9ec82"
+          }
+        ],
+        "legend": {
+          "isVisible": true,
+          "position": "right"
+        },
+        "preferredSeriesType": "bar_stacked",
+        "tickLabelsVisibilitySettings": {
+          "x": true,
+          "yLeft": true,
+          "yRight": true
+        },
+        "valueLabels": "hide",
+        "yLeftExtent": {
+          "mode": "full"
+        },
+        "yRightExtent": {
+          "mode": "full"
+        }
+      }
+    },
+    "title": "Project IDs",
+    "visualizationType": "lnsXY"
+  },
+  "coreMigrationVersion": "7.15.1",
+  "id": "1f803a30-63f4-11ec-8f4a-71bba2608682",
+  "migrationVersion": {
+    "lens": "7.15.0"
+  },
+  "references": [
+    {
+      "id": "filebeat-*",
+      "name": "indexpattern-datasource-current-indexpattern",
+      "type": "index-pattern"
+    },
+    {
+      "id": "filebeat-*",
+      "name": "indexpattern-datasource-layer-3520eaad-d035-49d4-be63-2cfc14bfbe16",
+      "type": "index-pattern"
+    }
+  ],
+  "type": "lens",
+  "updated_at": "2021-12-23T13:28:13.375Z",
+  "version": "Wzg1NTAwLDUyXQ=="
+}

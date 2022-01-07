@@ -1,0 +1,102 @@
+{
+  "attributes": {
+    "description": "",
+    "state": {
+      "datasourceStates": {
+        "indexpattern": {
+          "layers": {
+            "169d81e9-bbb5-4141-8ff0-85394e09adbc": {
+              "columnOrder": [
+                "18da0799-0b73-4077-95c5-eb024c6f328f",
+                "5a8c22fb-1a48-4283-b382-0537f9a8e61a"
+              ],
+              "columns": {
+                "18da0799-0b73-4077-95c5-eb024c6f328f": {
+                  "dataType": "string",
+                  "isBucketed": true,
+                  "label": "Top values of source.geo.country_name",
+                  "operationType": "terms",
+                  "params": {
+                    "missingBucket": false,
+                    "orderBy": {
+                      "columnId": "5a8c22fb-1a48-4283-b382-0537f9a8e61a",
+                      "type": "column"
+                    },
+                    "orderDirection": "desc",
+                    "otherBucket": true,
+                    "size": 5
+                  },
+                  "scale": "ordinal",
+                  "sourceField": "source.geo.country_name"
+                },
+                "5a8c22fb-1a48-4283-b382-0537f9a8e61a": {
+                  "dataType": "number",
+                  "isBucketed": false,
+                  "label": "Count of records",
+                  "operationType": "count",
+                  "scale": "ratio",
+                  "sourceField": "Records"
+                }
+              },
+              "incompleteColumns": {}
+            }
+          }
+        }
+      },
+      "filters": [],
+      "query": {
+        "language": "kuery",
+        "query": ""
+      },
+      "visualization": {
+        "layers": [
+          {
+            "categoryDisplay": "default",
+            "groups": [
+              "18da0799-0b73-4077-95c5-eb024c6f328f"
+            ],
+            "layerId": "169d81e9-bbb5-4141-8ff0-85394e09adbc",
+            "layerType": "data",
+            "legendDisplay": "default",
+            "metric": "5a8c22fb-1a48-4283-b382-0537f9a8e61a",
+            "nestedLegend": false,
+            "numberDisplay": "percent"
+          }
+        ],
+        "shape": "donut"
+      }
+    },
+    "title": "Country distribution",
+    "visualizationType": "lnsPie"
+  },
+  "coreMigrationVersion": "7.15.1",
+  "id": "e21c0990-63ed-11ec-8f4a-71bba2608682",
+  "migrationVersion": {
+    "lens": "7.15.0"
+  },
+  "references": [
+    {
+      "id": "filebeat-*",
+      "name": "indexpattern-datasource-current-indexpattern",
+      "type": "index-pattern"
+    },
+    {
+      "id": "filebeat-*",
+      "name": "indexpattern-datasource-layer-169d81e9-bbb5-4141-8ff0-85394e09adbc",
+      "type": "index-pattern"
+    },
+    {
+      "id": "cloud_armor",
+      "name": "tag-ref-cloud_armor",
+      "type": "tag"
+    },
+    {
+      "id": "gcp",
+      "name": "tag-ref-gcp",
+      "type": "tag"
+    }
+  ],
+  "type": "lens",
+  "updated_at": "2021-12-23T12:43:09.358Z",
+  "version": "Wzg1Mzg4LDUyXQ=="
+}
