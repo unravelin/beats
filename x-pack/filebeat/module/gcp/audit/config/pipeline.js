@@ -134,6 +134,17 @@ function Audit(keep_original_message) {
                 to: "gcp.audit.request.proto_name",
                 type: "string"
             },
+            // BigQuery fields
+            {
+                from: "json.request.serviceData.jobInsertRequest.jobConfiguration.query.query",
+                to: "gcp.audit.bigquery.job_insert_request.query",
+                type: "string"
+            },
+            {
+                from: "json.request.serviceData.jobGetQueryResultsResponse.job.jobConfiguration.query.query",
+                to: "gcp.audit.bigquery.get_results.query",
+                type: "string"
+            },
             // The values in the request object will depend on the proto type.
             // So be very careful about making any assumptions about data shape.
             {

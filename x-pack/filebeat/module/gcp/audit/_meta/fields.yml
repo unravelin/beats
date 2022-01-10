@@ -191,3 +191,26 @@
         A developer-facing error message, which should be in English. Any user-facing
         error message should be localized and sent in the google.rpc.Status.details
         field, or localized by the client.
+  - name: bigquery
+    type: group
+    description: >
+      Details pertaining to different BigQuery jobs.
+    fields:
+    - name: job_insert_request
+      type: group
+      description: >
+        Details of job insert requests.
+      fields:
+      - name: query
+        type: text
+        description: >
+          The query executed as part of the BigQuery operation.
+    - name: get_results
+      type: group
+      description: >
+        Details of getQueryResult responses.
+      fields:
+      - name: query
+        type: text
+        description: >
+          The query executed as part of the BigQuery operation.
