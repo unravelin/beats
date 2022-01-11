@@ -2,6 +2,24 @@
 // or more contributor license agreements. Licensed under the Elastic License;
 // you may not use this file except in compliance with the Elastic License.
 
+function traverse(o,func) {
+    for (var i in o) {
+        // func.apply(this,[i,o[i]]);
+        if (i == "query") {
+            return func.apply(this, [i, o[i]])
+        }
+        if (o[i] !== null && typeof(o[i])=="object") {
+            //going one step down in the object tree!!
+            traverse(o[i],func);
+        }
+    }
+}
+function getQuery(key,value) {
+    if (key == "query" && typeof(value) !== "object") {
+        return value
+    }
+}
+
 function Audit(keep_original_message) {
     var processor = require("processor");
 
@@ -94,6 +112,17 @@ function Audit(keep_original_message) {
         mode: "rename",
     });
 
+    var getBigQueryQuery = function(evt) {
+        var serviceName = evt.Get("json.serviceName")
+        var serviceData = evt.Get("json.serviceData")
+        if (serviceName !== null && serviceData !== null) {
+            if (serviceName.includes("bigquery")) {
+                var query = traverse(serviceData, getQuery)
+                evt.Put("gcp.bigquery.query", query)
+        }
+    };
+
+
     // The LogEntry's protoPayload is moved to the json field. The protoPayload
     // contains the structured audit log fields.
     // https://cloud.google.com/logging/docs/reference/audit/auditlog/rest/Shared.Types/AuditLog
@@ -132,17 +161,6 @@ function Audit(keep_original_message) {
             {
                 from: "json.request.@type",
                 to: "gcp.audit.request.proto_name",
-                type: "string"
-            },
-            // BigQuery fields
-            {
-                from: "json.request.serviceData.jobInsertRequest.jobConfiguration.query.query",
-                to: "gcp.audit.bigquery.job_insert_request.query",
-                type: "string"
-            },
-            {
-                from: "json.request.serviceData.jobGetQueryResultsResponse.job.jobConfiguration.query.query",
-                to: "gcp.audit.bigquery.get_results.query",
                 type: "string"
             },
             // The values in the request object will depend on the proto type.
@@ -348,6 +366,7 @@ function Audit(keep_original_message) {
         .Add(saveMetadata)
         .Add(setCloudMetadata)
         .Add(setOrchestratorMetadata)
+        .Add(getBigQueryQuery)
         .Add(convertLogEntry)
         .Add(convertProtoPayload)
         .Add(copyFields)
