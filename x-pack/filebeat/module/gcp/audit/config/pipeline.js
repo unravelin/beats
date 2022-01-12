@@ -358,7 +358,6 @@ function Audit(keep_original_message) {
         .Add(setOrchestratorMetadata)
         .Add(convertLogEntry)
         .Add(convertProtoPayload)
-        .Add(getBigQueryQuery)
         .Add(copyFields)
         .Add(dropExtraFields)
         .Add(renameNestedFields)
