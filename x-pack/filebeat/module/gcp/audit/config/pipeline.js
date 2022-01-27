@@ -2,6 +2,7 @@
 // or more contributor license agreements. Licensed under the Elastic License;
 // you may not use this file except in compliance with the Elastic License.
 
+
 function Audit(keep_original_message) {
     var processor = require("processor");
 
@@ -21,24 +22,24 @@ function Audit(keep_original_message) {
         ignore_missing: true,
     });
 
-    var saveOriginalMessage = function(evt) {};
+    var saveOriginalMessage = function (evt) { };
     if (keep_original_message) {
         saveOriginalMessage = new processor.Convert({
             fields: [
-                {from: "message", to: "event.original"}
+                { from: "message", to: "event.original" }
             ],
             mode: "rename"
         });
     }
 
-    var dropPubSubFields = function(evt) {
+    var dropPubSubFields = function (evt) {
         evt.Delete("message");
     };
 
     var saveMetadata = new processor.Convert({
         fields: [
-            {from: "json.logName", to: "log.logger"},
-            {from: "json.insertId", to: "event.id"},
+            { from: "json.logName", to: "log.logger" },
+            { from: "json.insertId", to: "event.id" },
         ],
         ignore_missing: true
     });
@@ -63,8 +64,8 @@ function Audit(keep_original_message) {
         fail_on_error: false,
     });
 
-    var setOrchestratorMetadata = function(evt) {
-          if (evt.Get("json.resource.type") === "k8s_cluster") {
+    var setOrchestratorMetadata = function (evt) {
+        if (evt.Get("json.resource.type") === "k8s_cluster") {
             evt.Put("orchestrator.type", "kubernetes");
             var convert_processor = new processor.Convert({
                 fields: [
@@ -89,7 +90,7 @@ function Audit(keep_original_message) {
     // https://cloud.google.com/logging/docs/reference/v2/rest/v2/LogEntry
     var convertLogEntry = new processor.Convert({
         fields: [
-            {from: "json.protoPayload", to: "json"},
+            { from: "json.protoPayload", to: "json" },
         ],
         mode: "rename",
     });
@@ -228,6 +229,24 @@ function Audit(keep_original_message) {
                 // ravelin addition: path of IAP endpoint
             },
             {
+                from: "json.serviceData.jobGetQueryResultsResponse.job.jobConfiguration.query.query",
+                to: "gcp.audit.bigquery.query",
+                type: "string",
+                // ravelin addition: BigQuery SQL query
+            },
+            {
+                from: "json.serviceData.jobGetQueryResultsResponse.job.jobConfiguration.query.destinationTable.datasetId",
+                to: "gcp.audit.bigquery.dataset_id",
+                type: "string",
+                // ravelin addition: BigQuery destination dataset
+            },
+            {
+                from: "json.serviceData.jobGetQueryResultsResponse.job.jobConfiguration.query.destinationTable.tableId",
+                to: "gcp.audit.bigquery.table_id",
+                type: "string",
+                // ravelin addition: BigQuery destination table ID
+            },
+            {
                 from: "json.serviceName",
                 to: "gcp.audit.service_name",
                 type: "string",
@@ -282,12 +301,12 @@ function Audit(keep_original_message) {
     });
 
     // Drop extra fields
-    var dropExtraFields = function(evt) {
+    var dropExtraFields = function (evt) {
         evt.Delete("json");
     };
 
     // Rename nested fields.
-    var renameNestedFields = function(evt) {
+    var renameNestedFields = function (evt) {
         var arr = evt.Get("gcp.audit.authorization_info");
         if (Array.isArray(arr)) {
             for (var i = 0; i < arr.length; i++) {
@@ -301,7 +320,7 @@ function Audit(keep_original_message) {
     };
 
     // Set ECS categorization fields.
-    var setECSCategorization = function(evt) {
+    var setECSCategorization = function (evt) {
         evt.Put("event.kind", "event");
 
         // google.rpc.Code value for OK is 0.
