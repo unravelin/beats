@@ -2,6 +2,7 @@
 // or more contributor license agreements. Licensed under the Elastic License;
 // you may not use this file except in compliance with the Elastic License.
 
+
 function Audit(keep_original_message) {
     var processor = require("processor");
 
@@ -64,7 +65,7 @@ function Audit(keep_original_message) {
     });
 
     var setOrchestratorMetadata = function(evt) {
-          if (evt.Get("json.resource.type") === "k8s_cluster") {
+        if (evt.Get("json.resource.type") === "k8s_cluster") {
             evt.Put("orchestrator.type", "kubernetes");
             var convert_processor = new processor.Convert({
                 fields: [
@@ -202,6 +203,48 @@ function Audit(keep_original_message) {
                 from: "json.resourceLocation.currentLocations",
                 to: "gcp.audit.resource_location.current_locations"
                 // Type is a string array.
+            },
+            {
+                from: "json.serviceData.policyDelta.auditConfigDeltas",
+                to: "gcp.audit.policy_delta.audit_config_deltas"
+                // Type is an array of objects.
+                // ravelin addition: view specific details of audit config changes
+            },
+            {
+                from: "json.serviceData.policyDelta.bindingDeltas",
+                to: "gcp.audit.policy_delta.binding_deltas"
+                // Type is an array of objects.
+                // ravelin addition: view specific details of policy changes
+            },
+            {
+                from: "json.requestMetadata.requestAttributes.host",
+                to: "gcp.audit.iap.host",
+                type: "string",
+                // ravelin addition: host of IAP endpoint
+            },
+            {
+                from: "json.requestMetadata.requestAttributes.path",
+                to: "gcp.audit.iap.path",
+                type: "string",
+                // ravelin addition: path of IAP endpoint
+            },
+            {
+                from: "json.serviceData.jobGetQueryResultsResponse.job.jobConfiguration.query.query",
+                to: "gcp.audit.bigquery.query",
+                type: "string",
+                // ravelin addition: BigQuery SQL query
+            },
+            {
+                from: "json.serviceData.jobGetQueryResultsResponse.job.jobConfiguration.query.destinationTable.datasetId",
+                to: "gcp.audit.bigquery.dataset_id",
+                type: "string",
+                // ravelin addition: BigQuery destination dataset
+            },
+            {
+                from: "json.serviceData.jobGetQueryResultsResponse.job.jobConfiguration.query.destinationTable.tableId",
+                to: "gcp.audit.bigquery.table_id",
+                type: "string",
+                // ravelin addition: BigQuery destination table ID
             },
             {
                 from: "json.serviceName",
