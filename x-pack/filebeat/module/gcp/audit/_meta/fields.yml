@@ -130,6 +130,10 @@
       type: keyword
       description: >
        Status of the response.
+    - name: reason
+      type: keyword
+      description: >
+       Reason for status of the response.
   - name: resource_name
     type: keyword
     description: >
