@@ -176,7 +176,7 @@ function Audit(keep_original_message) {
             },
             {
                 from: "json.response.reason",
-                to: "gcp.audit.response.reason",
+                to: "event.reason",
                 type: "string"
                 // ravelin addition: view specific details of response status (for example binary authorization policy violation)
             },
