@@ -307,9 +307,17 @@ function Audit(keep_original_message) {
     };
 
     var copyBigQueryFields = function(evt) {
-        // SQL query
-        var query = evt.Get("json.serviceData.jobGetQueryResultsResponse.job.jobConfiguration.query.query");
-        evt.Put("gcp.audit.bigquery.query", query)
+        // SQL query job
+        var query = evt.Get("json.metadata.jobChange.job.jobConfig.queryConfig.query");
+        if (query != undefined) {
+            evt.Put("gcp.audit.bigquery.query", query)
+            if (query.toUpperCase().indexOf("EXPORT DATA OPTIONS") != -1) { // sometimes exports are performed in SQL query
+                var res = query.match(/uri=['"]\S+['"]/)
+                // if (Array.isArray(res)) {
+                evt.Put("gcp.audit.bigquery.export_destination", res[0].slice(5, -1))
+                // }
+            }
+        }
 
         var arr = evt.Get("json.serviceData.jobGetQueryResultsResponse.job.jobStatistics.referencedTables");
         if (Array.isArray(arr)) {
@@ -317,14 +325,16 @@ function Audit(keep_original_message) {
             evt.Put("gcp.audit.bigquery.table_id", arr[0].tableId);
         }
 
-        // Export
-        var query = evt.Get("json.metadata.jobInsertion.job.jobConfig.type");
-        evt.Put("gcp.audit.bigquery.query", query);
+        // Export job
         var config = evt.Get("json.metadata.jobInsertion.job.jobConfig.extractConfig");
-        if (Array.isArray(config.destinationUris)) {
-            evt.Put("gcp.audit.bigquery.export_destination", config.destinationUris[0])
-            evt.Put("gcp.audit.bigquery.dataset_id", config.sourceTable.split("/")[3])
-            evt.Put("gcp.audit.bigquery.table_id", config.sourceTable.split("/")[5])
+        if (config != undefined){
+            if (config.hasOwnProperty('destinationUris')) {
+                if (Array.isArray(config.destinationUris) && config.destinationUris.length > 0) {
+                    evt.Put("gcp.audit.bigquery.export_destination", config.destinationUris[0])
+                    evt.Put("gcp.audit.bigquery.dataset_id", config.sourceTable.split("/")[3])
+                    evt.Put("gcp.audit.bigquery.table_id", config.sourceTable.split("/")[5])
+                }
+            }
         }
     }
 
