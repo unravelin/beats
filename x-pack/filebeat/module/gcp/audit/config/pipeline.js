@@ -313,9 +313,7 @@ function Audit(keep_original_message) {
             evt.Put("gcp.audit.bigquery.query", query)
             if (query.toUpperCase().indexOf("EXPORT DATA OPTIONS") != -1) { // sometimes exports are performed in SQL query
                 var res = query.match(/uri=['"]\S+['"]/)
-                // if (Array.isArray(res)) {
                 evt.Put("gcp.audit.bigquery.export_destination", res[0].slice(5, -1))
-                // }
             }
         }
 
@@ -325,14 +323,27 @@ function Audit(keep_original_message) {
             evt.Put("gcp.audit.bigquery.table_id", arr[0].tableId);
         }
 
-        // Export job
+        // Fetching temporary dataset and table IDs to match export sizes
+        var tmpDatasetId = evt.Get("json.serviceData.jobGetQueryResultsResponse.job.jobConfiguration.query.destinationTable.datasetId");
+        if (tmpDatasetId != undefined) {
+            evt.Put("gcp.audit.bigquery.tmp_dataset_id", tmpDatasetId)
+        }
+        var tmpTableId = evt.Get("json.serviceData.jobGetQueryResultsResponse.job.jobConfiguration.query.destinationTable.tableId");
+        if (tmpTableId != undefined) {
+            evt.Put("gcp.audit.bigquery.tmp_table_id", tmpTableId)
+        }
+        var outputRowCount = evt.Get("json.serviceData.jobGetQueryResultsResponse.job.jobStatistics.queryOutputRowCount")
+        if (outputRowCount != undefined) {
+            evt.Put("gcp.audit.bigquery.output_row_count", outputRowCount)
+        }
+        // Export job (usually export to gdrive)
         var config = evt.Get("json.metadata.jobInsertion.job.jobConfig.extractConfig");
         if (config != undefined){
             if (config.hasOwnProperty('destinationUris')) {
                 if (Array.isArray(config.destinationUris) && config.destinationUris.length > 0) {
                     evt.Put("gcp.audit.bigquery.export_destination", config.destinationUris[0])
-                    evt.Put("gcp.audit.bigquery.dataset_id", config.sourceTable.split("/")[3])
-                    evt.Put("gcp.audit.bigquery.table_id", config.sourceTable.split("/")[5])
+                    evt.Put("gcp.audit.bigquery.tmp_dataset_id", config.sourceTable.split("/")[3])
+                    evt.Put("gcp.audit.bigquery.tmp_table_id", config.sourceTable.split("/")[5])
                 }
             }
         }

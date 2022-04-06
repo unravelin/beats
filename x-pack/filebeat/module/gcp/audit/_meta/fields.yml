@@ -208,7 +208,19 @@
       type: keyword
       description: >
         The BigQuery dataset ID on which the query is being ran.
+    - name: tmp_table_id
+      type: keyword
+      description: >
+        The temporary BigQuery table ID on which the data is exported to.
+    - name: tmp_dataset_id
+      type: keyword
+      description: >
+        The temporary BigQuery dataset ID on which the data is exported to.
     - name: export_destination
       type: keyword
       description: >
         The BigQuery export destination (example GCS bucket URI).
+    - name: output_row_count
+      type: integer
+      description: >
+        The BigQuery query output row count.
