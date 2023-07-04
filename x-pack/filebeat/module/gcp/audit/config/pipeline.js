@@ -88,11 +88,8 @@ function Audit(keep_original_message) {
 
     var checkDryRunBinaryAuthLabels = function(evt){
         var labels = evt.Get("json.labels")
-        if(Array.isArray(labels)){
-            if(labels.includes("imagepolicywebhook.image-policy.k8s.io/dry-run"))
-            {
-                evt.Put("gcp.audit.binary_auth.dry_run_denied", True)
-            }
+        if("imagepolicywebhook.image-policy.k8s.io/dry-run" in labels) {
+            evt.Put("gcp.audit.binary_auth.dry_run_denied", True)
         }
     }
 
