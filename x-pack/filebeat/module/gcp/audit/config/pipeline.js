@@ -89,8 +89,9 @@ function Audit(keep_original_message) {
     // https://cloud.google.com/binary-authorization/docs/viewing-audit-logs#dry_run_events
     var checkDryRunBinaryAuthLabels = function(evt){
         var labels = evt.Get("json.labels")
-        if("imagepolicywebhook.image-policy.k8s.io/dry-run" in labels) {
-            evt.Put("gcp.audit.binary_auth.dry_run_denied", True)
+
+        if((typeof labels === 'object' && labels !== null) && ("imagepolicywebhook.image-policy.k8s.io/dry-run" in labels)) {
+            evt.Put("gcp.audit.binary_auth.dry_run_denied", true)
         }
     }
 
@@ -395,10 +396,10 @@ function Audit(keep_original_message) {
         .Add(saveMetadata)
         .Add(setCloudMetadata)
         .Add(setOrchestratorMetadata)
+        .Add(checkDryRunBinaryAuthLabels)
         .Add(convertLogEntry)
         .Add(convertProtoPayload)
         .Add(copyFields)
-        .Add(checkDryRunBinaryAuthLabels)
         .Add(copyBigQueryFields)
         .Add(dropExtraFields)
         .Add(renameNestedFields)
