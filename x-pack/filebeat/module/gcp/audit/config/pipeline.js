@@ -87,13 +87,22 @@ function Audit(keep_original_message) {
 
     // adding a boolean attribute for dry-run denied events in binary authorization.
     // https://cloud.google.com/binary-authorization/docs/viewing-audit-logs#dry_run_events
-    var checkDryRunBinaryAuthLabels = function(evt){
+    // adding a boolean attribute for breakglass events in binary authorization
+    // https://cloud.google.com/binary-authorization/docs/viewing-audit-logs#view_breakglass_events
+    var checkBinaryAuthLabels = function(evt){
         var labels = evt.Get("json.labels")
 
-        if((typeof labels === 'object' && labels !== null) && ("imagepolicywebhook.image-policy.k8s.io/dry-run" in labels)) {
-            evt.Put("gcp.audit.binary_auth.dry_run_denied", true)
+        if(typeof labels === 'object' && labels !== null)
+        {
+           if ("imagepolicywebhook.image-policy.k8s.io/dry-run" in labels){
+                evt.Put("gcp.audit.binary_auth.dry_run_denied", true)
+           }
+           if("image-policy.k8s.io/break-glass" in labels){
+                evt.Put("gcp.audit.binary_auth.breakglass_used", true)
+           }
         }
     }
+
 
     // The log includes a protoPayload field.
     // https://cloud.google.com/logging/docs/reference/v2/rest/v2/LogEntry
@@ -396,7 +405,7 @@ function Audit(keep_original_message) {
         .Add(saveMetadata)
         .Add(setCloudMetadata)
         .Add(setOrchestratorMetadata)
-        .Add(checkDryRunBinaryAuthLabels)
+        .Add(checkBinaryAuthLabels)
         .Add(convertLogEntry)
         .Add(convertProtoPayload)
         .Add(copyFields)
