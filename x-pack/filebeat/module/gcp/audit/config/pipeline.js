@@ -85,20 +85,13 @@ function Audit(keep_original_message) {
         }
     };
 
-    var convertLabels = new processor.Convert({
 
-        fields:[
-            {from:"json.labels", to: "labels"}
-        ],
-        mode:"rename",
-    });
-
-    var checkLabels = function(evt){
-        var arr = evt.Get()
-        if(Array.isArray(arr)){
-            if(arr.Get("imagepolicywebhook.image-policy.k8s.io/dry-run") === "True")
+    var checkDryRunBinaryAuthLabels = function(evt){
+        var labels = evt.Get("json.labels")
+        if(Array.isArray(labels)){
+            if(labels.includes("imagepolicywebhook.image-policy.k8s.io/dry-run"))
             {
-                evt.Put("gcp.audit.binary_auth.dry_run_enabled",arr.Get("imagepolicywebhook.image-policy.k8s.io/dry-run"))
+                evt.Put("gcp.audit.binary_auth.dry_run_denied", True)
             }
         }
     }
@@ -407,8 +400,7 @@ function Audit(keep_original_message) {
         .Add(convertLogEntry)
         .Add(convertProtoPayload)
         .Add(copyFields)
-        .Add(convertLabels)
-        .Add(checkLabels)
+        .Add(checkDryRunBinaryAuthLabels)
         .Add(copyBigQueryFields)
         .Add(dropExtraFields)
         .Add(renameNestedFields)

@@ -228,11 +228,8 @@
     type: group
     description: >
       Details pertaining to binary authorisation.
-    - name: dry_run_result
-      type: text
-      description: >
-        Result of binary authorisation when in dry run mode
-    - name: dry_run_enabled
+    fields:
+    - name: dry_run_denied
       type: bool
       description: >
         Boolean for storing if binary authorisation dry run mode is enabled
