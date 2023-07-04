@@ -99,7 +99,6 @@ function Audit(keep_original_message) {
             if(arr.Get("imagepolicywebhook.image-policy.k8s.io/dry-run") === "True")
             {
                 evt.Put("gcp.audit.binary_auth.dry_run_enabled",arr.Get("imagepolicywebhook.image-policy.k8s.io/dry-run"))
-                evt.Put("gcp.audit.binary_auth.dry_run_result",arr.Get("imagepolicywebhook.image-policy.k8s.io/overridden-verification-result"))
             }
         }
     }
