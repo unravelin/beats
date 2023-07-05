@@ -97,7 +97,7 @@ function Audit(keep_original_message) {
            if ("imagepolicywebhook.image-policy.k8s.io/dry-run" in labels){
                 evt.Put("gcp.audit.binary_auth.dry_run_denied", true)
            }
-           if("image-policy.k8s.io/break-glass" in labels){
+           if("imagepolicywebhook.image-policy.k8s.io/break-glass" in labels){
                 evt.Put("gcp.audit.binary_auth.breakglass_used", true)
            }
         }
