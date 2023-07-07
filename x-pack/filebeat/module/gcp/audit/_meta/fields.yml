@@ -237,3 +237,7 @@
       type: boolean
       description: >
         Boolean for storing if breakglass was used to force deployment eventhough policy denied it
+    - name: image
+      type: text
+      description: >
+        Text field used for storing the image string

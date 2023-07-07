@@ -99,6 +99,11 @@ function Audit(keep_original_message) {
            if("imagepolicywebhook.image-policy.k8s.io/break-glass" in labels){
                 evt.Put("gcp.audit.binary_auth.breakglass_used", true)
            }
+           if("imagepolicywebhook.image-policy.k8s.io/overridden-verification-result" in labels){
+                var image = labels["imagepolicywebhook.image-policy.k8s.io/overridden-verification-result"]
+                image = image.substring(0,image.indexOf(':'))
+                evt.Put("gcp.audit.binary_auth.image",image)
+           }
         }
     }
 
