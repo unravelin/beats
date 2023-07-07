@@ -101,7 +101,7 @@ function Audit(keep_original_message) {
            }
            if("imagepolicywebhook.image-policy.k8s.io/overridden-verification-result" in labels){
                 var image = labels["imagepolicywebhook.image-policy.k8s.io/overridden-verification-result"]
-                image = image.substring(0,image.indexOf(':'))
+                image = image.match(/'.*'/g)[0].slice(1, -1)
                 evt.Put("gcp.audit.binary_auth.image",image)
            }
         }
