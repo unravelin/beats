@@ -66603,6 +66603,26 @@ type: boolean
 
 --
 
+*`gcp.audit.binary_auth.breakglass_used`*::
++
+--
+Boolean for storing if breakglass was used to force deployment eventhough policy denied it
+
+
+type: boolean
+
+--
+
+*`gcp.audit.binary_auth.image`*::
++
+--
+Text field used for storing the image string
+
+
+type: text
+
+--
+
 [float]
 === cilium
 
