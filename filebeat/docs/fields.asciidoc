@@ -66587,6 +66587,43 @@ type: integer
 --
 
 [float]
+=== binary_auth
+
+Details pertaining to binary authorisation.
+
+
+
+*`gcp.audit.binary_auth.dry_run_denied`*::
++
+--
+Boolean for storing if binary authorisation dry run mode is enabled
+
+
+type: boolean
+
+--
+
+*`gcp.audit.binary_auth.breakglass_used`*::
++
+--
+Boolean for storing if breakglass was used to force deployment eventhough policy denied it
+
+
+type: boolean
+
+--
+
+*`gcp.audit.binary_auth.image`*::
++
+--
+Text field used for storing the image string
+
+
+type: text
+
+--
+
+[float]
 === cilium
 
 Fields for Cilium logs
