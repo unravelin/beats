@@ -1,4 +1,4 @@
-FROM docker.elastic.co/beats/filebeat:8.0.0
+FROM docker.elastic.co/beats/filebeat:8.9.0
 USER root
 
 # Removing the audit gcp module from the base image
