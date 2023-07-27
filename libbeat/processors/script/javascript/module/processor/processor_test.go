@@ -26,10 +26,10 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/elastic/beats/v7/libbeat/beat"
-	"github.com/elastic/beats/v7/libbeat/common"
-	"github.com/elastic/beats/v7/libbeat/logp"
-	"github.com/elastic/beats/v7/libbeat/processors"
 	"github.com/elastic/beats/v7/libbeat/processors/script/javascript"
+	"github.com/elastic/elastic-agent-libs/config"
+	"github.com/elastic/elastic-agent-libs/logp"
+	"github.com/elastic/elastic-agent-libs/mapstr"
 
 	_ "github.com/elastic/beats/v7/libbeat/processors/script/javascript/module/require"
 )
@@ -41,14 +41,14 @@ func init() {
 
 func testEvent() *beat.Event {
 	return &beat.Event{
-		Fields: common.MapStr{
-			"source": common.MapStr{
+		Fields: mapstr.M{
+			"source": mapstr.M{
 				"ip": "192.0.2.1",
 			},
-			"destination": common.MapStr{
+			"destination": mapstr.M{
 				"ip": "192.0.2.1",
 			},
-			"network": common.MapStr{
+			"network": mapstr.M{
 				"transport": "igmp",
 			},
 			"message": "key=hello",
@@ -67,7 +67,7 @@ function process(evt) {
 }
 `
 
-	logp.TestingSetup()
+	_ = logp.TestingSetup()
 	p, err := javascript.NewFromConfig(javascript.Config{Source: script}, nil)
 	require.NoError(t, err)
 
@@ -103,7 +103,7 @@ function process(evt) {
 }
 `
 
-	logp.TestingSetup()
+	_ = logp.TestingSetup()
 	p, err := javascript.NewFromConfig(javascript.Config{Source: script}, nil)
 	require.NoError(t, err)
 
@@ -128,7 +128,7 @@ function process(evt) {
 }
 `
 
-	logp.TestingSetup()
+	_ = logp.TestingSetup()
 	_, err := javascript.NewFromConfig(javascript.Config{Source: script}, nil)
 	require.Error(t, err, "processor that implements Closer() shouldn't be allowed")
 }
@@ -146,16 +146,16 @@ func checkEvent(t *testing.T, evt *beat.Event, key, value string) {
 }
 
 type mockProcessor struct {
-	fields common.MapStr
+	fields mapstr.M
 }
 
-func newMock(c *common.Config) (processors.Processor, error) {
+func newMock(c *config.C) (beat.Processor, error) {
 	config := struct {
-		Fields common.MapStr `config:"fields" validate:"required"`
+		Fields mapstr.M `config:"fields" validate:"required"`
 	}{}
 	err := c.Unpack(&config)
 	if err != nil {
-		return nil, fmt.Errorf("fail to unpack the mock processor configuration: %s", err)
+		return nil, fmt.Errorf("fail to unpack the mock processor configuration: %w", err)
 	}
 
 	return &mockProcessor{
@@ -175,7 +175,7 @@ func (m *mockProcessor) String() string {
 
 type mockProcessorWithCloser struct{}
 
-func newMockWithCloser(c *common.Config) (processors.Processor, error) {
+func newMockWithCloser(c *config.C) (beat.Processor, error) {
 	return &mockProcessorWithCloser{}, nil
 }
 

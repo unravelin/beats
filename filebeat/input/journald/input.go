@@ -16,7 +16,6 @@
 // under the License.
 
 //go:build linux && cgo && withjournald
-// +build linux,cgo,withjournald
 
 package journald
 
@@ -30,12 +29,12 @@ import (
 	"github.com/elastic/beats/v7/filebeat/input/journald/pkg/journalread"
 	input "github.com/elastic/beats/v7/filebeat/input/v2"
 	cursor "github.com/elastic/beats/v7/filebeat/input/v2/input-cursor"
-	"github.com/elastic/beats/v7/libbeat/common"
 	"github.com/elastic/beats/v7/libbeat/common/backoff"
 	"github.com/elastic/beats/v7/libbeat/feature"
-	"github.com/elastic/beats/v7/libbeat/logp"
 	"github.com/elastic/beats/v7/libbeat/reader"
 	"github.com/elastic/beats/v7/libbeat/reader/parser"
+	conf "github.com/elastic/elastic-agent-libs/config"
+	"github.com/elastic/elastic-agent-libs/logp"
 )
 
 type journald struct {
@@ -86,7 +85,7 @@ var cursorVersion = 1
 
 func (p pathSource) Name() string { return string(p) }
 
-func configure(cfg *common.Config) ([]cursor.Source, cursor.Input, error) {
+func configure(cfg *conf.C) ([]cursor.Source, cursor.Input, error) {
 	config := defaultConfig()
 	if err := cfg.Unpack(&config); err != nil {
 		return nil, nil, err
@@ -238,9 +237,9 @@ func seekBy(log *logp.Logger, cp checkpoint, seek, defaultSeek journalread.SeekM
 }
 
 // readerAdapter wraps journalread.Reader and adds two functionalities:
-// - Allows it to behave like a reader.Reader
-// - Translates the fields names from the journald format to something
-//   more human friendly
+//   - Allows it to behave like a reader.Reader
+//   - Translates the fields names from the journald format to something
+//     more human friendly
 type readerAdapter struct {
 	r                  *journalread.Reader
 	canceler           input.Canceler

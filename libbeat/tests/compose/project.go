@@ -19,15 +19,14 @@ package compose
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"syscall"
 	"time"
 
-	"github.com/pkg/errors"
-
-	"github.com/elastic/beats/v7/libbeat/logp"
+	"github.com/elastic/elastic-agent-libs/logp"
 )
 
 // CreateOptions are the options when containers are created
@@ -278,7 +277,7 @@ func acquireLock(path string) bool {
 
 	_, err = fmt.Fprintf(file, "%d", os.Getpid())
 	if err != nil {
-		panic(errors.Wrap(err, "Failed to write pid to lock file"))
+		panic(fmt.Errorf("Failed to write pid to lock file: %w", err))
 	}
 	return true
 }

@@ -23,15 +23,14 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/pkg/errors"
-
 	"github.com/elastic/beats/v7/libbeat/beat"
-	"github.com/elastic/beats/v7/libbeat/common"
 	"github.com/elastic/beats/v7/libbeat/common/atomic"
-	"github.com/elastic/beats/v7/libbeat/logp"
-	"github.com/elastic/beats/v7/libbeat/monitoring"
 	"github.com/elastic/beats/v7/libbeat/processors"
 	jsprocessor "github.com/elastic/beats/v7/libbeat/processors/script/javascript/module/processor"
+	"github.com/elastic/elastic-agent-libs/config"
+	"github.com/elastic/elastic-agent-libs/logp"
+	"github.com/elastic/elastic-agent-libs/mapstr"
+	"github.com/elastic/elastic-agent-libs/monitoring"
 )
 
 const logName = "processor.dns"
@@ -51,10 +50,10 @@ type processor struct {
 }
 
 // New constructs a new DNS processor.
-func New(cfg *common.Config) (processors.Processor, error) {
+func New(cfg *config.C) (beat.Processor, error) {
 	c := defaultConfig
 	if err := cfg.Unpack(&c); err != nil {
-		return nil, errors.Wrap(err, "fail to unpack the dns configuration")
+		return nil, fmt.Errorf("fail to unpack the dns configuration: %w", err)
 	}
 
 	// Logging and metrics (each processor instance has a unique ID).
@@ -83,7 +82,7 @@ func (p *processor) Run(event *beat.Event) (*beat.Event, error) {
 	for field, target := range p.reverseFlat {
 		if err := p.processField(field, target, p.Action, event); err != nil {
 			p.log.Debugf("DNS processor failed: %v", err)
-			tagOnce.Do(func() { common.AddTags(event.Fields, p.TagOnFailure) })
+			tagOnce.Do(func() { _ = mapstr.AddTags(event.Fields, p.TagOnFailure) })
 		}
 	}
 	return event, nil
@@ -92,6 +91,7 @@ func (p *processor) Run(event *beat.Event) (*beat.Event, error) {
 func (p *processor) processField(source, target string, action FieldAction, event *beat.Event) error {
 	v, err := event.GetValue(source)
 	if err != nil {
+		//nolint:nilerr // an empty source field isn't considered an error for this processor
 		return nil
 	}
 
@@ -102,7 +102,7 @@ func (p *processor) processField(source, target string, action FieldAction, even
 
 	ptrRecord, err := p.resolver.LookupPTR(maybeIP)
 	if err != nil {
-		return fmt.Errorf("reverse lookup of %v value '%v' failed: %v", source, maybeIP, err)
+		return fmt.Errorf("reverse lookup of %v value '%v' failed: %w", source, maybeIP, err)
 	}
 
 	return setFieldValue(action, event, target, ptrRecord.Host)
@@ -129,7 +129,7 @@ func setFieldValue(action FieldAction, event *beat.Event, key string, value stri
 		}
 		return err
 	default:
-		panic(errors.Errorf("Unexpected dns field action value encountered: %v", action))
+		panic(fmt.Errorf("Unexpected dns field action value encountered: %v", action))
 	}
 }
 

@@ -18,17 +18,16 @@
 package add_process_metadata
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
 
-	"github.com/pkg/errors"
-
 	"github.com/elastic/beats/v7/libbeat/common"
-	"github.com/elastic/beats/v7/libbeat/logp"
-	"github.com/elastic/beats/v7/libbeat/metric/system/cgroup"
-	"github.com/elastic/beats/v7/libbeat/metric/system/resolve"
+	"github.com/elastic/elastic-agent-libs/logp"
+	"github.com/elastic/elastic-agent-system-metrics/metric/system/cgroup"
+	"github.com/elastic/elastic-agent-system-metrics/metric/system/resolve"
 )
 
 const (
@@ -98,7 +97,7 @@ func (p gosigarCidProvider) getProcessCgroups(pid int) (cgroup.PathList, error) 
 		// or not running in linux system
 	default:
 		// should never happen
-		return cgroup, errors.Wrapf(err, "failed to read cgroups for pid=%v", pid)
+		return cgroup, fmt.Errorf("failed to read cgroups for pid=%v: %w", pid, err)
 	}
 
 	return cgroup, nil

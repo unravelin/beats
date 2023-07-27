@@ -6,6 +6,7 @@ package metrics
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -13,13 +14,13 @@ import (
 
 	"github.com/golang/protobuf/ptypes/duration"
 
-	monitoring "cloud.google.com/go/monitoring/apiv3"
+	monitoring "cloud.google.com/go/monitoring/apiv3/v2"
+	"cloud.google.com/go/monitoring/apiv3/v2/monitoringpb"
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"google.golang.org/api/iterator"
-	monitoringpb "google.golang.org/genproto/googleapis/monitoring/v3"
 
-	"github.com/elastic/beats/v7/libbeat/logp"
 	"github.com/elastic/beats/v7/x-pack/metricbeat/module/gcp"
+	"github.com/elastic/elastic-agent-libs/logp"
 )
 
 type metricsRequester struct {
@@ -35,7 +36,7 @@ type timeSeriesWithAligner struct {
 	aligner    string
 }
 
-func (r *metricsRequester) Metric(ctx context.Context, serviceName, metricType string, timeInterval *monitoringpb.TimeInterval, aligner string) (out timeSeriesWithAligner) {
+func (r *metricsRequester) Metric(ctx context.Context, serviceName, metricType string, timeInterval *monitoringpb.TimeInterval, aligner string) timeSeriesWithAligner {
 	timeSeries := make([]*monitoringpb.TimeSeries, 0)
 
 	req := &monitoringpb.ListTimeSeriesRequest{
@@ -50,9 +51,10 @@ func (r *metricsRequester) Metric(ctx context.Context, serviceName, metricType s
 	}
 
 	it := r.client.ListTimeSeries(ctx, req)
+
 	for {
 		resp, err := it.Next()
-		if err == iterator.Done {
+		if errors.Is(err, iterator.Done) {
 			break
 		}
 
@@ -64,9 +66,12 @@ func (r *metricsRequester) Metric(ctx context.Context, serviceName, metricType s
 		timeSeries = append(timeSeries, resp)
 	}
 
-	out.aligner = aligner
-	out.timeSeries = timeSeries
-	return
+	out := timeSeriesWithAligner{
+		aligner:    aligner,
+		timeSeries: timeSeries,
+	}
+
+	return out
 }
 
 func (r *metricsRequester) Metrics(ctx context.Context, serviceName string, aligner string, metricsToCollect map[string]metricMeta) ([]timeSeriesWithAligner, error) {
@@ -94,65 +99,114 @@ func (r *metricsRequester) Metrics(ctx context.Context, serviceName string, alig
 	return results, nil
 }
 
+func (r *metricsRequester) buildRegionsFilter(regions []string, label string) string {
+	if len(regions) == 0 {
+		return ""
+	}
+
+	var filter strings.Builder
+
+	// No. of regions added to the filter string.
+	var regionsCount uint
+
+	for _, region := range regions {
+		// If 1 region has been added and the iteration continues, add the OR operator.
+		if regionsCount > 0 {
+			filter.WriteString("OR")
+			filter.WriteString(" ")
+		}
+
+		filter.WriteString(fmt.Sprintf("%s = starts_with(\"%s\")", label, trimWildcard(region)))
+		filter.WriteString(" ")
+
+		regionsCount++
+	}
+
+	switch {
+	// If the filter string has more than 1 region, parentheses are added for better filter readability.
+	case regionsCount > 1:
+		return fmt.Sprintf("(%s)", strings.TrimSpace(filter.String()))
+	default:
+		return strings.TrimSpace(filter.String())
+	}
+}
+
+// getServiceLabelFor return the appropriate label to use for filtering metrics of a given service.
+func getServiceLabelFor(serviceName string) string {
+	switch serviceName {
+	case gcp.ServiceCompute:
+		return gcp.ComputeResourceLabel
+	case gcp.ServiceGKE:
+		return gcp.GKEResourceLabel
+	case gcp.ServiceDataproc:
+		return gcp.DataprocResourceLabel
+	case gcp.ServiceStorage:
+		return gcp.StorageResourceLabel
+	case gcp.ServiceCloudSQL:
+		return gcp.CloudSQLResourceLabel
+	case gcp.ServiceRedis:
+		return gcp.RedisResourceLabel
+	default:
+		return gcp.DefaultResourceLabel
+	}
+}
+
+func (r *metricsRequester) buildLocationFilter(serviceLabel, filter string) string {
+	if r.config.Region != "" && r.config.Zone != "" {
+		r.logger.Warnf("when region %s and zone %s config parameter "+
+			"both are provided, only use region", r.config.Regions, r.config.Zone)
+	}
+
+	if r.config.Region != "" && len(r.config.Regions) != 0 {
+		r.logger.Warnf("when region %s and regions config parameters are both provided, use region", r.config.Region)
+	}
+
+	switch {
+	case r.config.Region != "":
+		filter = fmt.Sprintf("%s AND %s = starts_with(\"%s\")", filter, serviceLabel, trimWildcard(r.config.Region))
+	case r.config.Zone != "":
+		filter = fmt.Sprintf("%s AND %s = starts_with(\"%s\")", filter, serviceLabel, trimWildcard(r.config.Zone))
+	case len(r.config.Regions) != 0:
+		regionsFilter := r.buildRegionsFilter(r.config.Regions, serviceLabel)
+		filter = fmt.Sprintf("%s AND %s", filter, regionsFilter)
+	}
+
+	return filter
+}
+
+// trimWildcard remove wildcard value `*` from the end of the string.
+func trimWildcard(value string) string {
+	return strings.TrimSuffix(value, "*")
+}
+
+// isAGlobalService return true if the given service is considered global from GCP and does not
+// uses the regional or zonal metrics filtering.
+func isAGlobalService(serviceName string) bool {
+	switch serviceName {
+	case gcp.ServicePubsub, gcp.ServiceLoadBalancing, gcp.ServiceCloudFunctions, gcp.ServiceFirestore:
+		return true
+	default:
+		return false
+	}
+}
+
 // getFilterForMetric returns the filter associated with the corresponding filter. Some services like Pub/Sub fails
 // if they have a region specified.
-func (r *metricsRequester) getFilterForMetric(serviceName, m string) (f string) {
-	f = fmt.Sprintf(`metric.type="%s"`, m)
-	if r.config.Zone == "" && r.config.Region == "" {
-		return
+func (r *metricsRequester) getFilterForMetric(serviceName, m string) string {
+	f := fmt.Sprintf(`metric.type="%s"`, m)
+
+	locationsConfigsAvailable := r.config.Region != "" || r.config.Zone != "" || len(r.config.Regions) > 0
+	// NOTE: some GCP services are global, not regional or zonal. To these services we don't need
+	// to apply any additional filters.
+	if locationsConfigsAvailable && !isAGlobalService(serviceName) {
+		serviceLabel := getServiceLabelFor(serviceName)
+		f = r.buildLocationFilter(serviceLabel, f)
 	}
 
-	switch serviceName {
-	case gcp.ServiceGKE:
-		if r.config.Region != "" && r.config.Zone != "" {
-			r.logger.Warnf("when region %s and zone %s config parameter "+
-				"both are provided, only use region", r.config.Region, r.config.Zone)
-		}
-
-		region := r.config.Region
-		if region != "" {
-			if strings.HasSuffix(region, "*") {
-				region = strings.TrimSuffix(region, "*")
-			}
-			f = fmt.Sprintf("%s AND resource.label.location=starts_with(\"%s\")", f, region)
-			break
-		}
-		zone := r.config.Zone
-		if zone != "" {
-			if strings.HasSuffix(zone, "*") {
-				zone = strings.TrimSuffix(zone, "*")
-			}
-			f = fmt.Sprintf("%s AND resource.label.location=starts_with(\"%s\")", f, zone)
-		}
-	case gcp.ServicePubsub, gcp.ServiceLoadBalancing, gcp.ServiceCloudFunctions, gcp.ServiceFirestore, gcp.ServiceDataproc:
-		return
-	case gcp.ServiceStorage:
-		if r.config.Region == "" {
-			return
-		}
-
-		f = fmt.Sprintf(`%s AND resource.labels.location = "%s"`, f, r.config.Region)
-	default:
-		if r.config.Region != "" && r.config.Zone != "" {
-			r.logger.Warnf("when region %s and zone %s config parameter "+
-				"both are provided, only use region", r.config.Region, r.config.Zone)
-		}
-		if r.config.Region != "" {
-			region := r.config.Region
-			if strings.HasSuffix(r.config.Region, "*") {
-				region = strings.TrimSuffix(r.config.Region, "*")
-			}
-			f = fmt.Sprintf(`%s AND resource.labels.zone = starts_with("%s")`, f, region)
-		} else if r.config.Zone != "" {
-			zone := r.config.Zone
-			if strings.HasSuffix(r.config.Zone, "*") {
-				zone = strings.TrimSuffix(r.config.Zone, "*")
-			}
-			f = fmt.Sprintf(`%s AND resource.labels.zone = starts_with("%s")`, f, zone)
-		}
-	}
+	// NOTE: make sure to log the applied filter, as it helpful when debugging
 	r.logger.Debugf("ListTimeSeries API filter = %s", f)
-	return
+
+	return f
 }
 
 // Returns a GCP TimeInterval based on the ingestDelay and samplePeriod from ListMetricDescriptor

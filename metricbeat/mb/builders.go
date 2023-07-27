@@ -18,16 +18,16 @@
 package mb
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/gofrs/uuid"
 	"github.com/joeshaw/multierror"
-	"github.com/pkg/errors"
 
-	"github.com/elastic/beats/v7/libbeat/common"
-	"github.com/elastic/beats/v7/libbeat/logp"
-	"github.com/elastic/beats/v7/libbeat/monitoring"
+	conf "github.com/elastic/elastic-agent-libs/config"
+	"github.com/elastic/elastic-agent-libs/logp"
+	"github.com/elastic/elastic-agent-libs/monitoring"
 )
 
 var (
@@ -47,7 +47,7 @@ var (
 // will be unpacked into ModuleConfig structs). r is the Register where the
 // ModuleFactory's and MetricSetFactory's will be obtained from. This method
 // returns a Module and its configured MetricSets or an error.
-func NewModule(config *common.Config, r *Register) (Module, []MetricSet, error) {
+func NewModule(config *conf.C, r *Register) (Module, []MetricSet, error) {
 	if !config.Enabled() {
 		return nil, nil, ErrModuleDisabled
 	}
@@ -72,7 +72,7 @@ func NewModule(config *common.Config, r *Register) (Module, []MetricSet, error) 
 
 // newBaseModuleFromConfig creates a new BaseModule from config. The returned
 // BaseModule's name will always be lower case.
-func newBaseModuleFromConfig(rawConfig *common.Config) (BaseModule, error) {
+func newBaseModuleFromConfig(rawConfig *conf.C) (BaseModule, error) {
 	baseModule := BaseModule{
 		config:    DefaultModuleConfig(),
 		rawConfig: rawConfig,
@@ -91,7 +91,7 @@ func newBaseModuleFromConfig(rawConfig *common.Config) (BaseModule, error) {
 
 	err = mustNotContainDuplicates(baseModule.config.Hosts)
 	if err != nil {
-		return baseModule, errors.Wrapf(err, "invalid hosts for module '%s'", baseModule.name)
+		return baseModule, fmt.Errorf("invalid hosts for module '%s': %w", baseModule.name, err)
 	}
 
 	return baseModule, nil
@@ -129,8 +129,8 @@ func initMetricSets(r *Register, m Module) ([]MetricSet, error) {
 		if registration.HostParser != nil {
 			bm.hostData, err = registration.HostParser(bm.Module(), bm.host)
 			if err != nil {
-				errs = append(errs, errors.Wrapf(err, "host parsing failed for %v-%v",
-					bm.Module().Name(), bm.Name()))
+				errs = append(errs, fmt.Errorf("host parsing failed for %v-%v: %w",
+					bm.Module().Name(), bm.Name(), err))
 				continue
 			}
 			bm.host = bm.hostData.Host
@@ -168,7 +168,7 @@ func newBaseMetricSets(r *Register, m Module) ([]BaseMetricSet, error) {
 		var err error
 		metricSetNames, err = r.DefaultMetricSets(m.Name())
 		if err != nil {
-			return nil, errors.Errorf("no metricsets configured for module '%s'", m.Name())
+			return nil, fmt.Errorf("no metricsets configured for module '%s'", m.Name())
 		}
 	}
 
@@ -178,7 +178,7 @@ func newBaseMetricSets(r *Register, m Module) ([]BaseMetricSet, error) {
 		for _, host := range hosts {
 			id, err := uuid.NewV4()
 			if err != nil {
-				return nil, errors.Wrap(err, "failed to generate ID for metricset")
+				return nil, fmt.Errorf("failed to generate ID for metricset: %w", err)
 			}
 			msID := id.String()
 			metrics := monitoring.NewRegistry()

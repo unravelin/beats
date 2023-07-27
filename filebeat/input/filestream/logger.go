@@ -20,7 +20,7 @@ package filestream
 import (
 	loginp "github.com/elastic/beats/v7/filebeat/input/filestream/internal/input-logfile"
 	"github.com/elastic/beats/v7/libbeat/common/file"
-	"github.com/elastic/beats/v7/libbeat/logp"
+	"github.com/elastic/elastic-agent-libs/logp"
 )
 
 func loggerWithEvent(logger *logp.Logger, event loginp.FSEvent, src loginp.Source) *logp.Logger {
@@ -28,8 +28,11 @@ func loggerWithEvent(logger *logp.Logger, event loginp.FSEvent, src loginp.Sourc
 		"operation", event.Op.String(),
 		"source_name", src.Name(),
 	)
-	if event.Info != nil && event.Info.Sys() != nil {
-		log = log.With("os_id", file.GetOSState(event.Info))
+	if event.Descriptor.Fingerprint != "" {
+		log = log.With("fingerprint", event.Descriptor.Fingerprint)
+	}
+	if event.Descriptor.Info != nil && event.Descriptor.Info.Sys() != nil {
+		log = log.With("os_id", file.GetOSState(event.Descriptor.Info))
 	}
 	if event.NewPath != "" {
 		log = log.With("new_path", event.NewPath)

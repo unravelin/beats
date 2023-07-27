@@ -19,12 +19,11 @@ package stats
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"github.com/elastic/beats/v7/metricbeat/helper/elastic"
+	"github.com/elastic/elastic-agent-libs/mapstr"
 
-	"github.com/pkg/errors"
-
-	"github.com/elastic/beats/v7/libbeat/common"
 	s "github.com/elastic/beats/v7/libbeat/common/schema"
 	c "github.com/elastic/beats/v7/libbeat/common/schema/mapstriface"
 	"github.com/elastic/beats/v7/metricbeat/mb"
@@ -113,9 +112,9 @@ var (
 
 func eventMapping(r mb.ReporterV2, info beat.Info, clusterUUID string, content []byte, isXpack bool) error {
 	event := mb.Event{
-		RootFields:      common.MapStr{},
-		ModuleFields:    common.MapStr{},
-		MetricSetFields: common.MapStr{},
+		RootFields:      mapstr.M{},
+		ModuleFields:    mapstr.M{},
+		MetricSetFields: mapstr.M{},
 	}
 	event.RootFields.Put("service.name", beat.ModuleName)
 
@@ -129,11 +128,11 @@ func eventMapping(r mb.ReporterV2, info beat.Info, clusterUUID string, content [
 	var data map[string]interface{}
 	err := json.Unmarshal(content, &data)
 	if err != nil {
-		return errors.Wrap(err, "failure parsing Beat's Stats API response")
+		return fmt.Errorf("failure parsing Beat's Stats API response: %w", err)
 	}
 
 	event.MetricSetFields, _ = schema.Apply(data)
-	event.MetricSetFields.Put("beat", common.MapStr{
+	event.MetricSetFields.Put("beat", mapstr.M{
 		"name":    info.Name,
 		"host":    info.Hostname,
 		"type":    info.Beat,

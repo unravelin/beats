@@ -3,7 +3,6 @@
 // you may not use this file except in compliance with the Elastic License.
 
 //go:build !aix
-// +build !aix
 
 package azureeventhub
 
@@ -40,7 +39,7 @@ func TestGetAzureEnvironment(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, env, azure.GermanCloud)
 	resMan = "http://management.invalidhybrid.com/"
-	env, err = getAzureEnvironment(resMan)
+	_, err = getAzureEnvironment(resMan)
 	assert.Errorf(t, err, "invalid character 'F' looking for beginning of value")
 	resMan = "<no value>"
 	env, err = getAzureEnvironment(resMan)

@@ -19,14 +19,13 @@ package fmtstr
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"reflect"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/pkg/errors"
 
 	"github.com/elastic/beats/v7/libbeat/beat"
 	"github.com/elastic/beats/v7/libbeat/common"
@@ -153,7 +152,7 @@ func CompileEvent(in string) (*EventFormatString, error) {
 
 // Unpack tries to initialize the EventFormatString from provided value
 // (which must be a string). Unpack method satisfies go-ucfg.Unpacker interface
-// required by common.Config, in order to use EventFormatString with
+// required by config.C, in order to use EventFormatString with
 // `common.(*Config).Unpack()`.
 func (fs *EventFormatString) Unpack(v interface{}) error {
 	s, err := tryConvString(v)
@@ -420,7 +419,7 @@ func fieldString(event *beat.Event, field string) (string, error) {
 
 	s, err := tryConvString(v)
 	if err != nil {
-		return s, errors.Wrapf(err, "can not convert key '%v' value to string", v)
+		return s, fmt.Errorf("can not convert key '%v' value to string: %w", v, err)
 	}
 	return s, nil
 }

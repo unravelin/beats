@@ -29,11 +29,10 @@ import (
 
 	"github.com/elastic/go-concert/unison"
 
-	input "github.com/elastic/beats/v7/filebeat/input/v2"
 	v2 "github.com/elastic/beats/v7/filebeat/input/v2"
-	"github.com/elastic/beats/v7/libbeat/common"
-	"github.com/elastic/beats/v7/libbeat/logp"
 	"github.com/elastic/beats/v7/libbeat/statestore"
+	conf "github.com/elastic/elastic-agent-libs/config"
+	"github.com/elastic/elastic-agent-libs/logp"
 )
 
 // InputManager is used to create, manage, and coordinate stateful inputs and
@@ -46,13 +45,13 @@ import (
 // input, and without any pending update operations for the persistent store.
 //
 // The Type field is used to create the key name in the persistent store. Users
-// are allowed to add a custome per input configuration ID using the `id`
+// are allowed to add a custom type per input configuration ID using the `id`
 // setting, to collect the same source multiple times, but with different
 // state. The key name in the persistent store becomes <Type>-[<ID>]-<Source Name>
 type InputManager struct {
 	Logger *logp.Logger
 
-	// StateStore gives the InputManager access to the persitent key value store.
+	// StateStore gives the InputManager access to the persistent key value store.
 	StateStore StateStore
 
 	// Type must contain the name of the input type. It is used to create the key name
@@ -65,13 +64,15 @@ type InputManager struct {
 
 	// Configure returns an array of Sources, and a configured Input instances
 	// that will be used to collect events from each source.
-	Configure func(cfg *common.Config) (Prospector, Harvester, error)
+	Configure func(cfg *conf.C) (Prospector, Harvester, error)
 
 	initOnce   sync.Once
 	initErr    error
 	store      *store
 	ackUpdater *updateWriter
 	ackCH      *updateChan
+	idsMux     sync.Mutex
+	ids        map[string]struct{}
 }
 
 // Source describe a source the input can collect data from.
@@ -83,6 +84,8 @@ type Source interface {
 
 var errNoInputRunner = errors.New("no input runner available")
 
+// globalInputID is a default ID for inputs created without an ID
+// Deprecated: Inputs without an ID are not supported anymore.
 const globalInputID = ".global"
 
 // StateStore interface and configurations used to give the Manager access to the persistent store.
@@ -108,6 +111,7 @@ func (cim *InputManager) init() error {
 		cim.store = store
 		cim.ackCH = newUpdateChan()
 		cim.ackUpdater = newUpdateWriter(store, cim.ackCH)
+		cim.ids = map[string]struct{}{}
 	})
 
 	return cim.initErr
@@ -154,7 +158,7 @@ func (cim *InputManager) shutdown() {
 
 // Create builds a new v2.Input using the provided Configure function.
 // The Input will run a go-routine per source that has been configured.
-func (cim *InputManager) Create(config *common.Config) (input.Input, error) {
+func (cim *InputManager) Create(config *conf.C) (v2.Input, error) {
 	if err := cim.init(); err != nil {
 		return nil, err
 	}
@@ -169,11 +173,23 @@ func (cim *InputManager) Create(config *common.Config) (input.Input, error) {
 	}
 
 	if settings.ID == "" {
-		cim.Logger.Warn("creating a filestream input without an ID, which may lead to duplicated data." +
-			"Filestream inputs will require an ID in a future release." +
-			"NOTE: Adding an ID to an existing input will cause all files to be re-read from the beginning.",
-		)
+		cim.Logger.Error("filestream input ID without ID might lead to data" +
+			" duplication, please add an ID and restart Filebeat")
 	}
+
+	metricsID := settings.ID
+	cim.idsMux.Lock()
+	if _, exists := cim.ids[settings.ID]; exists {
+		cim.Logger.Errorf("filestream input with ID '%s' already exists, this "+
+			"will lead to data duplication, please use a different ID. Metrics "+
+			"collection has been disabled on this input.", settings.ID)
+		metricsID = ""
+	}
+
+	// TODO: improve how inputs with empty IDs are tracked.
+	// https://github.com/elastic/beats/issues/35202
+	cim.ids[settings.ID] = struct{}{}
+	cim.idsMux.Unlock()
 
 	prospector, harvester, err := cim.Configure(config)
 	if err != nil {
@@ -185,14 +201,23 @@ func (cim *InputManager) Create(config *common.Config) (input.Input, error) {
 
 	sourceIdentifier, err := newSourceIdentifier(cim.Type, settings.ID)
 	if err != nil {
-		return nil, fmt.Errorf("error while creating source identifier for input: %v", err)
+		return nil, fmt.Errorf("error while creating source identifier for input: %w", err)
 	}
 
 	pStore := cim.getRetainedStore()
 	defer pStore.Release()
 
 	prospectorStore := newSourceStore(pStore, sourceIdentifier)
-	err = prospector.Init(prospectorStore)
+
+	// create a store with the deprecated global ID. This will be used to
+	// migrate the entries in the registry to use the new input ID.
+	globalIdentifier, err := newSourceIdentifier(cim.Type, "")
+	if err != nil {
+		return nil, fmt.Errorf("cannot create global identifier for input: %w", err)
+	}
+	globalStore := newSourceStore(pStore, globalIdentifier)
+
+	err = prospector.Init(prospectorStore, globalStore, sourceIdentifier.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -201,12 +226,32 @@ func (cim *InputManager) Create(config *common.Config) (input.Input, error) {
 		manager:          cim,
 		ackCH:            cim.ackCH,
 		userID:           settings.ID,
+		metricsID:        metricsID,
 		prospector:       prospector,
 		harvester:        harvester,
 		sourceIdentifier: sourceIdentifier,
 		cleanTimeout:     settings.CleanTimeout,
 		harvesterLimit:   settings.HarvesterLimit,
 	}, nil
+}
+
+func (cim *InputManager) Delete(cfg *conf.C) error {
+	settings := struct {
+		ID string `config:"id"`
+	}{}
+	if err := cfg.Unpack(&settings); err != nil {
+		return fmt.Errorf("could not unpack config to get the input ID: %w", err)
+	}
+
+	cim.StopInput(settings.ID)
+	return nil
+}
+
+// StopInput performs all necessary clean up when an input finishes.
+func (cim *InputManager) StopInput(id string) {
+	cim.idsMux.Lock()
+	delete(cim.ids, id)
+	cim.idsMux.Unlock()
 }
 
 func (cim *InputManager) getRetainedStore() *store {
@@ -216,23 +261,20 @@ func (cim *InputManager) getRetainedStore() *store {
 }
 
 type sourceIdentifier struct {
-	prefix           string
-	configuredUserID bool
+	prefix string
 }
 
 func newSourceIdentifier(pluginName, userID string) (*sourceIdentifier, error) {
 	if userID == globalInputID {
-		return nil, fmt.Errorf("invalid user ID: .global")
+		return nil, fmt.Errorf("invalid input ID: .global")
 	}
 
-	configuredUserID := true
 	if userID == "" {
-		configuredUserID = false
 		userID = globalInputID
 	}
+
 	return &sourceIdentifier{
-		prefix:           pluginName + "::" + userID + "::",
-		configuredUserID: configuredUserID,
+		prefix: pluginName + "::" + userID + "::",
 	}, nil
 }
 

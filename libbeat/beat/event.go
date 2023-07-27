@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/elastic/beats/v7/libbeat/common"
+	"github.com/elastic/elastic-agent-libs/mapstr"
 )
 
 // FlagField fields used to keep information or errors when events are parsed.
@@ -39,8 +40,8 @@ const (
 // Output can optionally publish a subset of Meta, or ignore Meta.
 type Event struct {
 	Timestamp  time.Time
-	Meta       common.MapStr
-	Fields     common.MapStr
+	Meta       mapstr.M
+	Fields     mapstr.M
 	Private    interface{} // for beats private use
 	TimeSeries bool        // true if the event contains timeseries data
 }
@@ -54,7 +55,7 @@ var (
 // If Meta is nil, a new Meta dictionary is created.
 func (e *Event) SetID(id string) {
 	if e.Meta == nil {
-		e.Meta = common.MapStr{}
+		e.Meta = mapstr.M{}
 	}
 	e.Meta["_id"] = id
 }
@@ -90,7 +91,7 @@ func (e *Event) Clone() *Event {
 // via `DeepUpdate`.
 // `DeepUpdateNoOverwrite` is a version of this function that does not
 // overwrite existing values.
-func (e *Event) DeepUpdate(d common.MapStr) {
+func (e *Event) DeepUpdate(d mapstr.M) {
 	e.deepUpdate(d, true)
 }
 
@@ -101,64 +102,81 @@ func (e *Event) DeepUpdate(d common.MapStr) {
 // If the key is present and the value is a map as well, the sub-map will be updated recursively
 // via `DeepUpdateNoOverwrite`.
 // `DeepUpdate` is a version of this function that overwrites existing values.
-func (e *Event) DeepUpdateNoOverwrite(d common.MapStr) {
+func (e *Event) DeepUpdateNoOverwrite(d mapstr.M) {
 	e.deepUpdate(d, false)
 }
 
-func (e *Event) deepUpdate(d common.MapStr, overwrite bool) {
+func (e *Event) deepUpdate(d mapstr.M, overwrite bool) {
 	if len(d) == 0 {
 		return
 	}
-	fieldsUpdate := d.Clone() // so we can delete redundant keys
 
-	var metaUpdate common.MapStr
-
-	for fieldKey, value := range d {
-		switch fieldKey {
-
-		// one of the updates is the timestamp which is not a part of the event fields
-		case timestampFieldKey:
-			if overwrite {
-				_ = e.setTimestamp(value)
-			}
-			delete(fieldsUpdate, fieldKey)
-
-		// some updates are addressed for the metadata not the fields
-		case metadataFieldKey:
-			switch meta := value.(type) {
-			case common.MapStr:
-				metaUpdate = meta
-			case map[string]interface{}:
-				metaUpdate = common.MapStr(meta)
-			}
-
-			delete(fieldsUpdate, fieldKey)
-		}
-	}
-
-	if metaUpdate != nil {
-		if e.Meta == nil {
-			e.Meta = common.MapStr{}
-		}
+	// It's supported to update the timestamp using this function.
+	// However, we must handle it separately since it's a separate field of the event.
+	timestampValue, timestampExists := d[timestampFieldKey]
+	if timestampExists {
 		if overwrite {
-			e.Meta.DeepUpdate(metaUpdate)
-		} else {
-			e.Meta.DeepUpdateNoOverwrite(metaUpdate)
+			_ = e.setTimestamp(timestampValue)
 		}
+
+		// Temporary delete it from the update map,
+		// so we can do `e.Fields.DeepUpdate(d)` or
+		// `e.Fields.DeepUpdateNoOverwrite(d)` later
+		delete(d, timestampFieldKey)
 	}
 
-	if len(fieldsUpdate) == 0 {
+	// It's supported to update the metadata using this function.
+	// However, we must handle it separately since it's a separate field of the event.
+	metaValue, metaExists := d[metadataFieldKey]
+	if metaExists {
+		var metaUpdate mapstr.M
+
+		switch meta := metaValue.(type) {
+		case mapstr.M:
+			metaUpdate = meta
+		case map[string]interface{}:
+			metaUpdate = mapstr.M(meta)
+		}
+
+		if metaUpdate != nil {
+			if e.Meta == nil {
+				e.Meta = mapstr.M{}
+			}
+			if overwrite {
+				e.Meta.DeepUpdate(metaUpdate)
+			} else {
+				e.Meta.DeepUpdateNoOverwrite(metaUpdate)
+			}
+		}
+
+		// Temporary delete it from the update map,
+		// so we can do `e.Fields.DeepUpdate(d)` or
+		// `e.Fields.DeepUpdateNoOverwrite(d)` later
+		delete(d, metadataFieldKey)
+	}
+
+	// At the end we revert all changes we made to the update map
+	defer func() {
+		if timestampExists {
+			d[timestampFieldKey] = timestampValue
+		}
+		if metaExists {
+			d[metadataFieldKey] = metaValue
+		}
+	}()
+
+	if len(d) == 0 {
 		return
 	}
 
 	if e.Fields == nil {
-		e.Fields = common.MapStr{}
+		e.Fields = mapstr.M{}
 	}
 
 	if overwrite {
-		e.Fields.DeepUpdate(fieldsUpdate)
+		e.Fields.DeepUpdate(d)
 	} else {
-		e.Fields.DeepUpdateNoOverwrite(fieldsUpdate)
+		e.Fields.DeepUpdateNoOverwrite(d)
 	}
 }
 
@@ -182,7 +200,7 @@ func (e *Event) PutValue(key string, v interface{}) (interface{}, error) {
 	} else if subKey, ok := metadataKey(key); ok {
 		if subKey == "" {
 			switch meta := v.(type) {
-			case common.MapStr:
+			case mapstr.M:
 				e.Meta = meta
 			case map[string]interface{}:
 				e.Meta = meta
@@ -190,7 +208,7 @@ func (e *Event) PutValue(key string, v interface{}) (interface{}, error) {
 				return nil, errNoMapStr
 			}
 		} else if e.Meta == nil {
-			e.Meta = common.MapStr{}
+			e.Meta = mapstr.M{}
 		}
 		return e.Meta.Put(subKey, v)
 	}
@@ -227,9 +245,18 @@ func metadataKey(key string) (string, bool) {
 	return "", false
 }
 
-// SetErrorWithOption sets jsonErr value in the event fields according to addErrKey value.
-func (e *Event) SetErrorWithOption(jsonErr common.MapStr, addErrKey bool) {
+// SetErrorWithOption sets the event error field with the message when the addErrKey is set to true.
+// If you want to include the data and field you can pass them as parameters and will be appended into the
+// error as fields with the corresponding name.
+func (e *Event) SetErrorWithOption(message string, addErrKey bool, data string, field string) {
 	if addErrKey {
-		e.Fields["error"] = jsonErr
+		errorField := mapstr.M{"message": message, "type": "json"}
+		if data != "" {
+			errorField["data"] = data
+		}
+		if field != "" {
+			errorField["field"] = field
+		}
+		e.Fields["error"] = errorField
 	}
 }

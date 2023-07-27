@@ -16,16 +16,17 @@
 // under the License.
 
 //go:build linux || darwin || windows
-// +build linux darwin windows
 
 package diskio
 
 import (
+	"fmt"
+
 	"github.com/docker/docker/client"
-	"github.com/pkg/errors"
 
 	"github.com/elastic/beats/v7/metricbeat/mb"
 	"github.com/elastic/beats/v7/metricbeat/module/docker"
+	"github.com/elastic/elastic-agent-libs/logp"
 )
 
 func init() {
@@ -72,7 +73,7 @@ func New(base mb.BaseMetricSet) (mb.MetricSet, error) {
 	if config.SkipMajor == nil {
 		config.SkipMajor = defaultMajorDev
 	}
-
+	logp.L().Debugf("Skipping major devices: %v", config.SkipMajor)
 	client, err := docker.NewDockerClient(base.HostData().URI, docker.Config{TLS: config.TLS, DeDot: config.DeDot})
 	if err != nil {
 		return nil, err
@@ -90,7 +91,7 @@ func New(base mb.BaseMetricSet) (mb.MetricSet, error) {
 func (m *MetricSet) Fetch(r mb.ReporterV2) error {
 	stats, err := docker.FetchStats(m.dockerClient, m.Module().Config().Timeout)
 	if err != nil {
-		return errors.Wrap(err, "failed to get docker stats")
+		return fmt.Errorf("failed to get docker stats: %w", err)
 	}
 
 	formattedStats := m.blkioService.getBlkioStatsList(stats, m.config.DeDot, m.config.SkipMajor)
@@ -99,7 +100,7 @@ func (m *MetricSet) Fetch(r mb.ReporterV2) error {
 	return nil
 }
 
-//Close stops the metricset
+// Close stops the metricset
 func (m *MetricSet) Close() error {
 
 	return m.dockerClient.Close()

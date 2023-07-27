@@ -1,6 +1,8 @@
 ---
 description: Pipeline for parsing microsoft atp logs
 processors:
+- drop:
+    if: ctx.json?.value != null && ctx.json.value.isEmpty()
 - set:
     field: event.ingested
     value: '{{_ingest.timestamp}}'
@@ -168,6 +170,9 @@ processors:
 ######################
 ## ECS File Mapping ##
 ######################
+- remove:
+    field: json.alerts.entities
+    if: ctx?.json?.alerts?.entities != null && ctx.json.alerts.entities instanceof List && ctx.json.alerts.entities.isEmpty()
 - rename:
     field: json.alerts.entities.fileName
     target_field: file.name

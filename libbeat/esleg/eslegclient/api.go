@@ -22,9 +22,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/pkg/errors"
-
-	"github.com/elastic/beats/v7/libbeat/common"
+	"github.com/elastic/elastic-agent-libs/version"
 )
 
 // QueryResult contains the result of a query.
@@ -92,7 +90,7 @@ type CountResults struct {
 
 func withQueryResult(status int, resp []byte, err error) (int, *QueryResult, error) {
 	if err != nil {
-		return status, nil, errors.Wrapf(err, "Elasticsearch response: %s", resp)
+		return status, nil, fmt.Errorf("Elasticsearch response: %s: %w", resp, err)
 	}
 	result, err := readQueryResult(resp)
 	return status, result, err
@@ -175,14 +173,12 @@ func (es *Connection) Refresh(index string) (int, *QueryResult, error) {
 // CreateIndex creates a new index, optionally with settings and mappings passed in
 // the body.
 // Implements: https://www.elastic.co/guide/en/elasticsearch/reference/current/indices-create-index.html
-//
 func (es *Connection) CreateIndex(index string, body interface{}) (int, *QueryResult, error) {
 	return withQueryResult(es.apiCall("PUT", index, "", "", "", nil, body))
 }
 
 // IndexExists checks if an index exists.
 // Implements: https://www.elastic.co/guide/en/elasticsearch/reference/current/indices-exists.html
-//
 func (es *Connection) IndexExists(index string) (int, error) {
 	status, _, err := es.apiCall("HEAD", index, "", "", "", nil, nil)
 	return status, err
@@ -237,7 +233,7 @@ func (es *Connection) SearchURIWithBody(
 	params map[string]string,
 	body interface{},
 ) (int, *SearchResults, error) {
-	if !es.version.LessThan(&common.Version{Major: 8}) {
+	if !es.version.LessThan(&version.V{Major: 8}) {
 		docType = ""
 	}
 	status, resp, err := es.apiCall("GET", index, docType, "_search", "", params, body)

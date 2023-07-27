@@ -16,7 +16,6 @@
 // under the License.
 
 //go:build integration
-// +build integration
 
 package fileset
 
@@ -31,7 +30,7 @@ import (
 	"github.com/elastic/beats/v7/libbeat/beat"
 	"github.com/elastic/beats/v7/libbeat/esleg/eslegclient"
 	"github.com/elastic/beats/v7/libbeat/esleg/eslegtest"
-	"github.com/elastic/beats/v7/libbeat/logp"
+	"github.com/elastic/elastic-agent-libs/logp"
 )
 
 func makeTestInfo(version string) beat.Info {
@@ -115,7 +114,7 @@ func TestSetupNginx(t *testing.T) {
 		},
 	}
 
-	reg, err := newModuleRegistry(modulesPath, configs, nil, makeTestInfo("5.2.0"))
+	reg, err := newModuleRegistry(modulesPath, configs, nil, makeTestInfo("5.2.0"), false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -194,7 +193,7 @@ func TestLoadMultiplePipelines(t *testing.T) {
 		{"foo", &enabled, filesetConfigs},
 	}
 
-	reg, err := newModuleRegistry(modulesPath, configs, nil, makeTestInfo("6.6.0"))
+	reg, err := newModuleRegistry(modulesPath, configs, nil, makeTestInfo("6.6.0"), false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -239,7 +238,7 @@ func TestLoadMultiplePipelinesWithRollback(t *testing.T) {
 		{"foo", &enabled, filesetConfigs},
 	}
 
-	reg, err := newModuleRegistry(modulesPath, configs, nil, makeTestInfo("6.6.0"))
+	reg, err := newModuleRegistry(modulesPath, configs, nil, makeTestInfo("6.6.0"), false)
 	if err != nil {
 		t.Fatal(err)
 	}

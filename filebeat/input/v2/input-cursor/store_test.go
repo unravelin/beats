@@ -26,9 +26,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/elastic/beats/v7/libbeat/logp"
 	"github.com/elastic/beats/v7/libbeat/statestore"
 	"github.com/elastic/beats/v7/libbeat/statestore/storetest"
+	"github.com/elastic/elastic-agent-libs/logp"
 )
 
 type testStateStore struct {
@@ -296,7 +296,7 @@ func (ts testStateStore) snapshot() map[string]state {
 // persistent state.
 //
 // Note: The state returned by storeMemorySnapshot is always ahead of the state returned by storeInSyncSnapshot.
-//       All key value pairs are fully in-sync, if both snapshot functions return the same state.
+// All key value pairs are fully in-sync, if both snapshot functions return the same state.
 func storeMemorySnapshot(store *store) map[string]state {
 	store.ephemeralStore.mu.Lock()
 	defer store.ephemeralStore.mu.Unlock()
@@ -313,7 +313,7 @@ func storeMemorySnapshot(store *store) map[string]state {
 // written to the persistent store already.
 
 // Note: The state returned by storeMemorySnapshot is always ahead of the state returned by storeInSyncSnapshot.
-//       All key value pairs are fully in-sync, if both snapshot functions return the same state.
+// All key value pairs are fully in-sync, if both snapshot functions return the same state.
 func storeInSyncSnapshot(store *store) map[string]state {
 	store.ephemeralStore.mu.Lock()
 	defer store.ephemeralStore.mu.Unlock()

@@ -11,19 +11,30 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"path/filepath"
+	"strings"
 	"time"
 
 	retryablehttp "github.com/hashicorp/go-retryablehttp"
+	"go.elastic.co/ecszap"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+
+	"github.com/elastic/mito/lib/xml"
 
 	v2 "github.com/elastic/beats/v7/filebeat/input/v2"
 	inputcursor "github.com/elastic/beats/v7/filebeat/input/v2/input-cursor"
 	"github.com/elastic/beats/v7/libbeat/beat"
-	"github.com/elastic/beats/v7/libbeat/common"
-	"github.com/elastic/beats/v7/libbeat/common/transport/httpcommon"
-	"github.com/elastic/beats/v7/libbeat/common/useragent"
 	"github.com/elastic/beats/v7/libbeat/feature"
-	"github.com/elastic/beats/v7/libbeat/logp"
+	"github.com/elastic/beats/v7/libbeat/monitoring/inputmon"
+	"github.com/elastic/beats/v7/libbeat/version"
+	"github.com/elastic/beats/v7/x-pack/filebeat/input/internal/httplog"
+	"github.com/elastic/elastic-agent-libs/logp"
+	"github.com/elastic/elastic-agent-libs/mapstr"
+	"github.com/elastic/elastic-agent-libs/monitoring"
+	"github.com/elastic/elastic-agent-libs/transport"
+	"github.com/elastic/elastic-agent-libs/transport/httpcommon"
+	"github.com/elastic/elastic-agent-libs/useragent"
 	"github.com/elastic/go-concert/ctxtool"
 	"github.com/elastic/go-concert/timed"
 )
@@ -33,7 +44,7 @@ const (
 )
 
 var (
-	userAgent = useragent.UserAgent("Filebeat")
+	userAgent = useragent.UserAgent("Filebeat", version.GetDefaultVersion(), version.Commit(), version.BuildTime().String())
 
 	// for testing
 	timeNow = time.Now
@@ -96,24 +107,55 @@ func test(url *url.URL) error {
 	return nil
 }
 
-func run(
+func runWithMetrics(
 	ctx v2.Context,
 	config config,
 	publisher inputcursor.Publisher,
 	cursor *inputcursor.Cursor,
 ) error {
+	reg, unreg := inputmon.NewInputRegistry("httpjson", ctx.ID, nil)
+	defer unreg()
+	return run(ctx, config, publisher, cursor, reg)
+}
+
+func run(
+	ctx v2.Context,
+	config config,
+	publisher inputcursor.Publisher,
+	cursor *inputcursor.Cursor,
+	reg *monitoring.Registry,
+) error {
 	log := ctx.Logger.With("input_url", config.Request.URL)
 
 	stdCtx := ctxtool.FromCanceller(ctx.Cancelation)
 
-	httpClient, err := newHTTPClient(stdCtx, config, log)
+	if config.Request.Tracer != nil {
+		id := sanitizeFileName(ctx.ID)
+		config.Request.Tracer.Filename = strings.ReplaceAll(config.Request.Tracer.Filename, "*", id)
+	}
+
+	metrics := newInputMetrics(reg)
+
+	httpClient, err := newHTTPClient(stdCtx, config, log, reg)
 	if err != nil {
 		return err
 	}
 
-	requestFactory := newRequestFactory(config.Request, config.Auth, log)
+	requestFactory, err := newRequestFactory(stdCtx, config, log, metrics, reg)
+	if err != nil {
+		log.Errorf("Error while creating requestFactory: %v", err)
+		return err
+	}
+	var xmlDetails map[string]xml.Detail
+	if config.Response.XSD != "" {
+		xmlDetails, err = xml.Details([]byte(config.Response.XSD))
+		if err != nil {
+			log.Errorf("error while collecting xml decoder type hints: %v", err)
+			return err
+		}
+	}
 	pagination := newPagination(config, httpClient, log)
-	responseProcessor := newResponseProcessor(config.Response, pagination, log)
+	responseProcessor := newResponseProcessor(config, pagination, xmlDetails, metrics, log)
 	requester := newRequester(httpClient, requestFactory, responseProcessor, log)
 
 	trCtx := emptyTransformContext()
@@ -123,11 +165,16 @@ func run(
 	doFunc := func() error {
 		log.Info("Process another repeated request.")
 
-		if err := requester.doRequest(stdCtx, trCtx, publisher); err != nil {
+		startTime := time.Now()
+
+		var err error
+		if err = requester.doRequest(stdCtx, trCtx, publisher); err != nil {
 			log.Errorf("Error while processing http request: %v", err)
 		}
 
-		if stdCtx.Err() != nil {
+		metrics.updateIntervalMetrics(err, startTime)
+
+		if err := stdCtx.Err(); err != nil {
 			return err
 		}
 
@@ -145,17 +192,21 @@ func run(
 	return nil
 }
 
-func newHTTPClient(ctx context.Context, config config, log *logp.Logger) (*httpClient, error) {
+// sanitizeFileName returns name with ":" and "/" replaced with "_", removing repeated instances.
+// The request.tracer.filename may have ":" when a httpjson input has cursor config and
+// the macOS Finder will treat this as path-separator and causes to show up strange filepaths.
+func sanitizeFileName(name string) string {
+	name = strings.ReplaceAll(name, ":", string(filepath.Separator))
+	name = filepath.Clean(name)
+	return strings.ReplaceAll(name, string(filepath.Separator), "_")
+}
+
+func newHTTPClient(ctx context.Context, config config, log *logp.Logger, reg *monitoring.Registry) (*httpClient, error) {
 	// Make retryable HTTP client
-	netHTTPClient, err := config.Request.Transport.Client(
-		httpcommon.WithAPMHTTPInstrumentation(),
-		httpcommon.WithKeepaliveSettings{Disable: true},
-	)
+	netHTTPClient, err := newNetHTTPClient(ctx, config.Request, log, reg)
 	if err != nil {
 		return nil, err
 	}
-
-	netHTTPClient.CheckRedirect = checkRedirect(config.Request, log)
 
 	client := &retryablehttp.Client{
 		HTTPClient:   netHTTPClient,
@@ -178,6 +229,82 @@ func newHTTPClient(ctx context.Context, config config, log *logp.Logger) (*httpC
 	}
 
 	return &httpClient{client: client.StandardClient(), limiter: limiter}, nil
+}
+
+func newNetHTTPClient(ctx context.Context, cfg *requestConfig, log *logp.Logger, reg *monitoring.Registry) (*http.Client, error) {
+	// Make retryable HTTP client
+	netHTTPClient, err := cfg.Transport.Client(clientOptions(cfg.URL.URL, cfg.KeepAlive.settings())...)
+	if err != nil {
+		return nil, err
+	}
+
+	if cfg.Tracer != nil {
+		w := zapcore.AddSync(cfg.Tracer)
+		go func() {
+			// Close the logger when we are done.
+			<-ctx.Done()
+			cfg.Tracer.Close()
+		}()
+		core := ecszap.NewCore(
+			ecszap.NewDefaultEncoderConfig(),
+			w,
+			zap.DebugLevel,
+		)
+		traceLogger := zap.New(core)
+
+		netHTTPClient.Transport = httplog.NewLoggingRoundTripper(netHTTPClient.Transport, traceLogger)
+	}
+
+	if reg != nil {
+		netHTTPClient.Transport = httplog.NewMetricsRoundTripper(netHTTPClient.Transport, reg)
+	}
+
+	netHTTPClient.CheckRedirect = checkRedirect(cfg, log)
+
+	return netHTTPClient, nil
+}
+
+// clientOption returns constructed client configuration options, including
+// setting up http+unix and http+npipe transports if requested.
+func clientOptions(u *url.URL, keepalive httpcommon.WithKeepaliveSettings) []httpcommon.TransportOption {
+	scheme, trans, ok := strings.Cut(u.Scheme, "+")
+	var dialer transport.Dialer
+	switch {
+	default:
+		fallthrough
+	case !ok:
+		return []httpcommon.TransportOption{
+			httpcommon.WithAPMHTTPInstrumentation(),
+			keepalive,
+		}
+
+	// We set the host for the unix socket and Windows named
+	// pipes schemes because the http.Transport expects to
+	// have a host and will error out if it is not present.
+	// The values here are just non-zero with a helpful name.
+	// They are not used in any logic.
+	case trans == "unix":
+		u.Host = "unix-socket"
+		dialer = socketDialer{u.Path}
+	case trans == "npipe":
+		u.Host = "windows-npipe"
+		dialer = npipeDialer{u.Path}
+	}
+	u.Scheme = scheme
+	return []httpcommon.TransportOption{
+		httpcommon.WithAPMHTTPInstrumentation(),
+		keepalive,
+		httpcommon.WithBaseDialer(dialer),
+	}
+}
+
+// socketDialer implements transport.Dialer to a constant socket path.
+type socketDialer struct {
+	path string
+}
+
+func (d socketDialer) Dial(_, _ string) (net.Conn, error) {
+	return net.Dial("unix", d.path)
 }
 
 func checkRedirect(config *requestConfig, log *logp.Logger) func(*http.Request, []*http.Request) error {
@@ -207,14 +334,14 @@ func checkRedirect(config *requestConfig, log *logp.Logger) func(*http.Request, 
 	}
 }
 
-func makeEvent(body common.MapStr) (beat.Event, error) {
+func makeEvent(body mapstr.M) (beat.Event, error) {
 	bodyBytes, err := json.Marshal(body)
 	if err != nil {
 		return beat.Event{}, err
 	}
 	now := timeNow()
-	fields := common.MapStr{
-		"event": common.MapStr{
+	fields := mapstr.M{
+		"event": mapstr.M{
 			"created": now,
 		},
 		"message": string(bodyBytes),

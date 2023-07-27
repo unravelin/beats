@@ -18,8 +18,11 @@
 package filestream
 
 import (
+	"errors"
 	"fmt"
+	"io"
 	"os"
+	"time"
 
 	"golang.org/x/text/transform"
 
@@ -27,17 +30,17 @@ import (
 
 	loginp "github.com/elastic/beats/v7/filebeat/input/filestream/internal/input-logfile"
 	input "github.com/elastic/beats/v7/filebeat/input/v2"
-	"github.com/elastic/beats/v7/libbeat/common"
 	"github.com/elastic/beats/v7/libbeat/common/cleanup"
 	"github.com/elastic/beats/v7/libbeat/common/file"
 	"github.com/elastic/beats/v7/libbeat/common/match"
 	"github.com/elastic/beats/v7/libbeat/feature"
-	"github.com/elastic/beats/v7/libbeat/logp"
 	"github.com/elastic/beats/v7/libbeat/reader"
 	"github.com/elastic/beats/v7/libbeat/reader/debug"
 	"github.com/elastic/beats/v7/libbeat/reader/parser"
 	"github.com/elastic/beats/v7/libbeat/reader/readfile"
 	"github.com/elastic/beats/v7/libbeat/reader/readfile/encoding"
+	conf "github.com/elastic/elastic-agent-libs/config"
+	"github.com/elastic/elastic-agent-libs/logp"
 )
 
 const pluginName = "filestream"
@@ -78,7 +81,7 @@ func Plugin(log *logp.Logger, store loginp.StateStore) input.Plugin {
 	}
 }
 
-func configure(cfg *common.Config) (loginp.Prospector, loginp.Harvester, error) {
+func configure(cfg *conf.C) (loginp.Prospector, loginp.Harvester, error) {
 	config := defaultConfig()
 	if err := cfg.Unpack(&config); err != nil {
 		return nil, nil, err
@@ -124,6 +127,7 @@ func (inp *filestream) Run(
 	src loginp.Source,
 	cursor loginp.Cursor,
 	publisher loginp.Publisher,
+	metrics *loginp.Metrics,
 ) error {
 	fs, ok := src.(fileSource)
 	if !ok {
@@ -139,6 +143,11 @@ func (inp *filestream) Run(
 		return err
 	}
 
+	metrics.FilesActive.Inc()
+	metrics.HarvesterRunning.Inc()
+	defer metrics.FilesActive.Dec()
+	defer metrics.HarvesterRunning.Dec()
+
 	_, streamCancel := ctxtool.WithFunc(ctx.Cancelation, func() {
 		log.Debug("Closing reader of filestream")
 		err := r.Close()
@@ -148,7 +157,7 @@ func (inp *filestream) Run(
 	})
 	defer streamCancel()
 
-	return inp.readFromSource(ctx, log, r, fs.newPath, state, publisher)
+	return inp.readFromSource(ctx, log, r, fs.newPath, state, publisher, metrics)
 }
 
 func initState(log *logp.Logger, c loginp.Cursor, s fileSource) state {
@@ -185,9 +194,9 @@ func (inp *filestream) open(log *logp.Logger, canceler input.Canceler, fs fileSo
 			OnStateChange: inp.closerConfig.OnStateChange,
 		}
 	}
-	// TODO: NewLineReader uses additional buffering to deal with encoding and testing
-	//       for new lines in input stream. Simple 8-bit based encodings, or plain
-	//       don't require 'complicated' logic.
+	// NewLineReader uses additional buffering to deal with encoding and testing
+	// for new lines in input stream. Simple 8-bit based encodings, or plain
+	// don't require 'complicated' logic.
 	logReader, err := newFileReader(log, canceler, f, inp.readerConfig, closerCfg)
 	if err != nil {
 		return nil, err
@@ -219,7 +228,7 @@ func (inp *filestream) open(log *logp.Logger, canceler input.Canceler, fs fileSo
 
 	r = readfile.NewStripNewline(r, inp.readerConfig.LineTerminator)
 
-	r = readfile.NewFilemeta(r, fs.newPath, offset)
+	r = readfile.NewFilemeta(r, fs.newPath, fs.desc.Info, fs.desc.Fingerprint, offset)
 
 	r = inp.parsers.Create(r)
 
@@ -235,7 +244,7 @@ func (inp *filestream) open(log *logp.Logger, canceler input.Canceler, fs fileSo
 func (inp *filestream) openFile(log *logp.Logger, path string, offset int64) (*os.File, error) {
 	fi, err := os.Stat(path)
 	if err != nil {
-		return nil, fmt.Errorf("failed to stat source file %s: %s", path, err)
+		return nil, fmt.Errorf("failed to stat source file %s: %w", path, err)
 	}
 
 	// it must be checked if the file is not a named pipe before we try to open it
@@ -247,13 +256,13 @@ func (inp *filestream) openFile(log *logp.Logger, path string, offset int64) (*o
 	ok := false
 	f, err := file.ReadOpen(path)
 	if err != nil {
-		return nil, fmt.Errorf("failed opening %s: %s", path, err)
+		return nil, fmt.Errorf("failed opening %s: %w", path, err)
 	}
 	defer cleanup.IfNot(&ok, cleanup.IgnoreError(f.Close))
 
 	fi, err = f.Stat()
 	if err != nil {
-		return nil, fmt.Errorf("failed to stat source file %s: %s", path, err)
+		return nil, fmt.Errorf("failed to stat source file %s: %w", path, err)
 	}
 
 	err = checkFileBeforeOpening(fi)
@@ -273,10 +282,10 @@ func (inp *filestream) openFile(log *logp.Logger, path string, offset int64) (*o
 	inp.encoding, err = inp.encodingFactory(f)
 	if err != nil {
 		f.Close()
-		if err == transform.ErrShortSrc {
+		if errors.Is(err, transform.ErrShortSrc) {
 			return nil, fmt.Errorf("initialising encoding for '%v' failed due to file being too short", f)
 		}
-		return nil, fmt.Errorf("initialising encoding for '%v' failed: %v", f, err)
+		return nil, fmt.Errorf("initialising encoding for '%v' failed: %w", f, err)
 	}
 	ok = true
 
@@ -293,12 +302,12 @@ func checkFileBeforeOpening(fi os.FileInfo) error {
 
 func (inp *filestream) initFileOffset(file *os.File, offset int64) error {
 	if offset > 0 {
-		_, err := file.Seek(offset, os.SEEK_SET)
+		_, err := file.Seek(offset, io.SeekCurrent)
 		return err
 	}
 
 	// get offset from file in case of encoding factory was required to read some data.
-	_, err := file.Seek(0, os.SEEK_CUR)
+	_, err := file.Seek(0, io.SeekCurrent)
 	return err
 }
 
@@ -309,30 +318,48 @@ func (inp *filestream) readFromSource(
 	path string,
 	s state,
 	p loginp.Publisher,
+	metrics *loginp.Metrics,
 ) error {
+	metrics.FilesOpened.Inc()
+	metrics.HarvesterOpenFiles.Inc()
+	metrics.HarvesterStarted.Inc()
+	defer metrics.FilesClosed.Inc()
+	defer metrics.HarvesterOpenFiles.Dec()
+	defer metrics.HarvesterClosed.Inc()
+
 	for ctx.Cancelation.Err() == nil {
 		message, err := r.Next()
 		if err != nil {
-			switch err {
-			case ErrFileTruncate:
-				log.Infof("File was truncated. Begin reading file from offset 0. Path=%s", path)
-			case ErrClosed:
-				log.Info("Reader was closed. Closing.")
-			default:
+			if errors.Is(err, ErrFileTruncate) {
+				log.Infof("File was truncated, nothing to read. Path='%s'", path)
+			} else if errors.Is(err, ErrClosed) {
+				log.Infof("Reader was closed. Closing. Path='%s'", path)
+			} else if errors.Is(err, io.EOF) {
+				log.Debugf("EOF has been reached. Closing. Path='%s'", path)
+			} else {
 				log.Errorf("Read line error: %v", err)
+				metrics.ProcessingErrors.Inc()
 			}
+
 			return nil
 		}
 
 		s.Offset += int64(message.Bytes)
 
+		metrics.MessagesRead.Inc()
 		if message.IsEmpty() || inp.isDroppedLine(log, string(message.Content)) {
 			continue
 		}
 
+		metrics.BytesProcessed.Add(uint64(message.Bytes))
+
 		if err := p.Publish(message.ToEvent(), s); err != nil {
+			metrics.ProcessingErrors.Inc()
 			return err
 		}
+
+		metrics.EventsProcessed.Inc()
+		metrics.ProcessingTime.Update(time.Since(message.Ts).Nanoseconds())
 	}
 	return nil
 }

@@ -19,6 +19,7 @@ import (
 	"github.com/elastic/beats/v7/x-pack/osquerybeat/internal/fetch"
 	"github.com/elastic/beats/v7/x-pack/osquerybeat/internal/fileutil"
 	"github.com/elastic/beats/v7/x-pack/osquerybeat/internal/hash"
+	"github.com/elastic/beats/v7/x-pack/osquerybeat/internal/pkgutil"
 	"github.com/elastic/beats/v7/x-pack/osquerybeat/internal/tar"
 )
 
@@ -53,8 +54,7 @@ func FetchOsqueryDistros() error {
 		// Currently the only supported is tar.gz extraction.
 		// There is no good Go library for extraction the cpio compressed "Payload" from Mac OS X .pkg,
 		// the few that I tried are limited and do not work. Maybe something to write for fun when time.
-		// The MSI is tricky as well to do the crossplatform extraction, no good Go library.
-		// So for Mac OS and Winderz the whole distro package is included and extracted
+		// So for Mac OS the whole distro package is included and extracted
 		// on the first run on the platform for now.
 		if fetched || !installFileExists {
 			err = extractOrCopy(osarch, spec)
@@ -137,6 +137,11 @@ func checkCacheAndFetch(osarch distro.OSArch, spec distro.Spec) (fetched bool, e
 	return false, errors.New("osquery distro hash mismatch")
 }
 
+const (
+	suffixTarGz = ".tar.gz"
+	suffixPkg   = ".pkg"
+)
+
 func extractOrCopy(osarch distro.OSArch, spec distro.Spec) error {
 	dir := distro.GetDataInstallDir(osarch)
 	if err := os.MkdirAll(dir, 0750); err != nil {
@@ -153,20 +158,59 @@ func extractOrCopy(osarch distro.OSArch, spec distro.Spec) error {
 		return devtools.Copy(src, dst)
 	}
 
+	if !strings.HasSuffix(src, suffixTarGz) && !strings.HasSuffix(src, suffixPkg) {
+		return fmt.Errorf("unsupported file: %s", src)
+	}
+	tmpdir, err := ioutil.TempDir(distro.DataDir, "")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(tmpdir)
+
+	var (
+		osdp  string
+		osdcp string
+		distp string
+	)
 	// Extract osqueryd
-	if strings.HasSuffix(src, ".tar.gz") {
-		tmpdir, err := ioutil.TempDir(distro.DataDir, "")
+	if strings.HasSuffix(src, suffixTarGz) {
+		log.Printf("Extract .tar.gz from %v", src)
+
+		osdp = distro.OsquerydLinuxDistroPath()
+		osdcp = distro.OsquerydCertsLinuxDistroPath()
+		distp = distro.OsquerydPath(dir)
+
+		// Untar
+		if err := tar.ExtractFile(src, tmpdir, osdp, osdcp); err != nil {
+			return err
+		}
+	}
+
+	if strings.HasSuffix(src, suffixPkg) {
+		log.Printf("Extract .pkg from %v", src)
+
+		osdp = distro.OsquerydDarwinDistroPath()
+		osdcp = distro.OsquerydCertsDarwinDistroPath()
+		distp = filepath.Join(dir, distro.OsquerydDarwinApp())
+
+		// Pkgutil expand full
+		err = pkgutil.Expand(src, tmpdir)
 		if err != nil {
 			return err
 		}
-		defer os.RemoveAll(tmpdir)
-
-		osdp := distro.OsquerydLinuxDistroPath()
-		if err := tar.ExtractFile(src, tmpdir, osdp); err != nil {
-			return err
-		}
-
-		return devtools.Copy(filepath.Join(tmpdir, osdp), distro.OsquerydPath(dir))
 	}
-	return fmt.Errorf("unsupported file: %s", src)
+
+	// Copy over certs directory
+	certsDir := filepath.Dir(distro.OsquerydCertsPath(dir))
+	err = os.MkdirAll(certsDir, 0750)
+	if err != nil {
+		return err
+	}
+	err = devtools.Copy(filepath.Join(tmpdir, osdcp), distro.OsquerydCertsPath(dir))
+	if err != nil {
+		return err
+	}
+
+	// Copy over the osqueryd binary or osquery.app dir
+	return devtools.Copy(filepath.Join(tmpdir, osdp), distp)
 }

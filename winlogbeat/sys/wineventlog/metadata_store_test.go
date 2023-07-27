@@ -16,7 +16,6 @@
 // under the License.
 
 //go:build windows
-// +build windows
 
 package wineventlog
 
@@ -25,11 +24,11 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/elastic/beats/v7/libbeat/logp"
+	"github.com/elastic/elastic-agent-libs/logp"
 )
 
 func TestPublisherMetadataStore(t *testing.T) {
-	logp.TestingSetup()
+	logp.TestingSetup() //nolint:errcheck // Not needed.
 
 	s, err := NewPublisherMetadataStore(
 		NilHandle,

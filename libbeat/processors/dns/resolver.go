@@ -18,6 +18,7 @@
 package dns
 
 import (
+	"errors"
 	"net"
 	"strconv"
 	"strings"
@@ -25,11 +26,10 @@ import (
 	"time"
 
 	"github.com/miekg/dns"
-	"github.com/pkg/errors"
 	"github.com/rcrowley/go-metrics"
 
-	"github.com/elastic/beats/v7/libbeat/monitoring"
-	"github.com/elastic/beats/v7/libbeat/monitoring/adapter"
+	"github.com/elastic/elastic-agent-libs/monitoring"
+	"github.com/elastic/elastic-agent-libs/monitoring/adapter"
 )
 
 const etcResolvConf = "/etc/resolv.conf"

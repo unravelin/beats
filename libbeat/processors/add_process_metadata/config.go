@@ -22,9 +22,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
-
-	"github.com/elastic/beats/v7/libbeat/common"
+	"github.com/elastic/elastic-agent-libs/mapstr"
 )
 
 type config struct {
@@ -61,31 +59,31 @@ type config struct {
 }
 
 // available fields by default
-var defaultFields = common.MapStr{
-	"process": common.MapStr{
+var defaultFields = mapstr.M{
+	"process": mapstr.M{
 		"name":       nil,
 		"title":      nil,
 		"executable": nil,
 		"args":       nil,
 		"pid":        nil,
-		"parent": common.MapStr{
+		"parent": mapstr.M{
 			"pid": nil,
 		},
 		"start_time": nil,
-		"owner": common.MapStr{
+		"owner": mapstr.M{
 			"name": nil,
 			"id":   nil,
 		},
 	},
-	"container": common.MapStr{
+	"container": mapstr.M{
 		"id": nil,
 	},
 }
 
 // fields declared in here will only appear when requested explicitly
 // with `restricted_fields: true`.
-var restrictedFields = common.MapStr{
-	"process": common.MapStr{
+var restrictedFields = mapstr.M{
+	"process": mapstr.M{
 		"env": nil,
 	},
 }
@@ -106,8 +104,8 @@ func defaultConfig() config {
 	}
 }
 
-func (pf *config) getMappings() (mappings common.MapStr, err error) {
-	mappings = common.MapStr{}
+func (pf *config) getMappings() (mappings mapstr.M, err error) {
+	mappings = mapstr.M{}
 	validFields := defaultFields
 	if pf.RestrictedFields {
 		validFields = restrictedFields
@@ -127,17 +125,17 @@ func (pf *config) getMappings() (mappings common.MapStr, err error) {
 			return nil, fmt.Errorf("field '%v' not found", docSrc)
 		}
 		if reqField != nil {
-			for subField := range reqField.(common.MapStr) {
+			for subField := range reqField.(mapstr.M) {
 				key := dstField + "." + subField
 				val := docSrc + "." + subField
 				if _, err = mappings.Put(key, val); err != nil {
-					return nil, errors.Wrapf(err, "failed to set mapping '%v' -> '%v'", dstField, docSrc)
+					return nil, fmt.Errorf("failed to set mapping '%v' -> '%v': %w", dstField, docSrc, err)
 				}
 			}
 		} else {
 			prev, err := mappings.Put(dstField, docSrc)
 			if err != nil {
-				return nil, errors.Wrapf(err, "failed to set mapping '%v' -> '%v'", dstField, docSrc)
+				return nil, fmt.Errorf("failed to set mapping '%v' -> '%v': %w", dstField, docSrc, err)
 			}
 			if prev != nil {
 				return nil, fmt.Errorf("field '%v' repeated", docSrc)

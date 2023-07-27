@@ -19,6 +19,7 @@ package elasticsearch
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/url"
 	"strconv"
@@ -26,13 +27,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pkg/errors"
-
-	"github.com/elastic/beats/v7/libbeat/common"
-	"github.com/elastic/beats/v7/libbeat/logp"
 	"github.com/elastic/beats/v7/metricbeat/helper"
 	"github.com/elastic/beats/v7/metricbeat/helper/elastic"
 	"github.com/elastic/beats/v7/metricbeat/mb"
+	"github.com/elastic/elastic-agent-libs/logp"
+	"github.com/elastic/elastic-agent-libs/mapstr"
+	"github.com/elastic/elastic-agent-libs/version"
 )
 
 func init() {
@@ -55,22 +55,23 @@ func NewModule(base mb.BaseModule) (mb.Module, error) {
 		"node_stats",
 		"shard",
 	}
-	return elastic.NewModule(&base, xpackEnabledMetricSets, logp.NewLogger(ModuleName))
+	optionalXpackMetricsets := []string{"ingest_pipeline"}
+	return elastic.NewModule(&base, xpackEnabledMetricSets, optionalXpackMetricsets, logp.NewLogger(ModuleName))
 }
 
 var (
 	// CCRStatsAPIAvailableVersion is the version of Elasticsearch since when the CCR stats API is available.
-	CCRStatsAPIAvailableVersion = common.MustNewVersion("6.5.0")
+	CCRStatsAPIAvailableVersion = version.MustNew("6.5.0")
 
 	// EnrichStatsAPIAvailableVersion is the version of Elasticsearch since when the Enrich stats API is available.
-	EnrichStatsAPIAvailableVersion = common.MustNewVersion("7.5.0")
+	EnrichStatsAPIAvailableVersion = version.MustNew("7.5.0")
 
 	// BulkStatsAvailableVersion is the version since when bulk indexing stats are available
-	BulkStatsAvailableVersion = common.MustNewVersion("8.0.0")
+	BulkStatsAvailableVersion = version.MustNew("8.0.0")
 
 	//ExpandWildcardsHiddenAvailableVersion is the version since when the "expand_wildcards" query parameter to
 	// the Indices Stats API can accept "hidden" as a value.
-	ExpandWildcardsHiddenAvailableVersion = common.MustNewVersion("7.7.0")
+	ExpandWildcardsHiddenAvailableVersion = version.MustNew("7.7.0")
 
 	// Global clusterIdCache. Assumption is that the same node id never can belong to a different cluster id.
 	clusterIDCache = map[string]string{}
@@ -89,7 +90,7 @@ type Info struct {
 
 // Version contains the semver formatted version of ES
 type Version struct {
-	Number *common.Version `json:"number"`
+	Number *version.V `json:"number"`
 }
 
 // NodeInfo struct cotains data about the node.
@@ -195,17 +196,16 @@ func getMasterName(http *helper.HTTP, uri string) (string, error) {
 }
 
 // GetInfo returns the data for the Elasticsearch / endpoint.
-func GetInfo(http *helper.HTTP, uri string) (*Info, error) {
-
+func GetInfo(http *helper.HTTP, uri string) (Info, error) {
 	content, err := fetchPath(http, uri, "/", "")
 	if err != nil {
-		return nil, err
+		return Info{}, err
 	}
 
-	info := &Info{}
+	info := Info{}
 	err = json.Unmarshal(content, &info)
 	if err != nil {
-		return nil, err
+		return Info{}, err
 	}
 
 	return info, nil
@@ -281,7 +281,7 @@ func GetLicense(http *helper.HTTP, resetURI string) (*License, error) {
 }
 
 // GetClusterState returns cluster state information.
-func GetClusterState(http *helper.HTTP, resetURI string, metrics []string) (common.MapStr, error) {
+func GetClusterState(http *helper.HTTP, resetURI string, metrics []string) (mapstr.M, error) {
 	clusterStateURI := "_cluster/state"
 	if metrics != nil && len(metrics) > 0 {
 		clusterStateURI += "/" + strings.Join(metrics, ",")
@@ -298,12 +298,12 @@ func GetClusterState(http *helper.HTTP, resetURI string, metrics []string) (comm
 }
 
 // GetClusterSettingsWithDefaults returns cluster settings.
-func GetClusterSettingsWithDefaults(http *helper.HTTP, resetURI string, filterPaths []string) (common.MapStr, error) {
+func GetClusterSettingsWithDefaults(http *helper.HTTP, resetURI string, filterPaths []string) (mapstr.M, error) {
 	return GetClusterSettings(http, resetURI, true, filterPaths)
 }
 
 // GetClusterSettings returns cluster settings
-func GetClusterSettings(http *helper.HTTP, resetURI string, includeDefaults bool, filterPaths []string) (common.MapStr, error) {
+func GetClusterSettings(http *helper.HTTP, resetURI string, includeDefaults bool, filterPaths []string) (mapstr.M, error) {
 	clusterSettingsURI := "_cluster/settings"
 	var queryParams []string
 	if includeDefaults {
@@ -389,7 +389,7 @@ func GetIndicesSettings(http *helper.HTTP, resetURI string) (map[string]IndexSet
 	content, err := fetchPath(http, resetURI, "*/_settings", "filter_path=*.settings.index.hidden&expand_wildcards=all")
 
 	if err != nil {
-		return nil, errors.Wrap(err, "could not fetch indices settings")
+		return nil, fmt.Errorf("could not fetch indices settings: %w", err)
 	}
 
 	var resp map[string]struct {
@@ -402,7 +402,7 @@ func GetIndicesSettings(http *helper.HTTP, resetURI string) (map[string]IndexSet
 
 	err = json.Unmarshal(content, &resp)
 	if err != nil {
-		return nil, errors.Wrap(err, "could not parse indices settings response")
+		return nil, fmt.Errorf("could not parse indices settings response: %w", err)
 	}
 
 	ret := make(map[string]IndexSettings, len(resp))
@@ -460,7 +460,7 @@ func GetMasterNodeID(http *helper.HTTP, resetURI string) (string, error) {
 
 // PassThruField copies the field at the given path from the given source data object into
 // the same path in the given target data object.
-func PassThruField(fieldPath string, sourceData, targetData common.MapStr) error {
+func PassThruField(fieldPath string, sourceData, targetData mapstr.M) error {
 	fieldValue, err := sourceData.GetValue(fieldPath)
 	if err != nil {
 		return elastic.MakeErrorForMissingField(fieldPath, elastic.Elasticsearch)
@@ -471,7 +471,7 @@ func PassThruField(fieldPath string, sourceData, targetData common.MapStr) error
 }
 
 // MergeClusterSettings merges cluster settings in the correct precedence order
-func MergeClusterSettings(clusterSettings common.MapStr) (common.MapStr, error) {
+func MergeClusterSettings(clusterSettings mapstr.M) (mapstr.M, error) {
 	transientSettings, err := getSettingGroup(clusterSettings, "transient")
 	if err != nil {
 		return nil, err
@@ -564,12 +564,12 @@ func (l *License) IsOneOf(candidateLicenses ...string) bool {
 	return false
 }
 
-// ToMapStr converts the license to a common.MapStr. This is necessary
+// ToMapStr converts the license to a mapstr.M. This is necessary
 // for proper marshaling of the data before it's sent over the wire. In
 // particular it ensures that ms-since-epoch values are marshaled as longs
 // and not floats in scientific notation as Elasticsearch does not like that.
-func (l *License) ToMapStr() common.MapStr {
-	m := common.MapStr{
+func (l *License) ToMapStr() mapstr.M {
+	m := mapstr.M{
 		"status":               l.Status,
 		"uid":                  l.ID,
 		"type":                 l.Type,
@@ -600,10 +600,10 @@ func (l *License) ToMapStr() common.MapStr {
 	return m
 }
 
-func getSettingGroup(allSettings common.MapStr, groupKey string) (common.MapStr, error) {
+func getSettingGroup(allSettings mapstr.M, groupKey string) (mapstr.M, error) {
 	hasSettingGroup, err := allSettings.HasKey(groupKey)
 	if err != nil {
-		return nil, errors.Wrap(err, "failure to determine if "+groupKey+" settings exist")
+		return nil, fmt.Errorf("failure to determine if "+groupKey+" settings exist: %w", err)
 	}
 
 	if !hasSettingGroup {
@@ -612,13 +612,13 @@ func getSettingGroup(allSettings common.MapStr, groupKey string) (common.MapStr,
 
 	settings, err := allSettings.GetValue(groupKey)
 	if err != nil {
-		return nil, errors.Wrap(err, "failure to extract "+groupKey+" settings")
+		return nil, fmt.Errorf("failure to extract "+groupKey+" settings: %w", err)
 	}
 
 	v, ok := settings.(map[string]interface{})
 	if !ok {
-		return nil, errors.Wrap(err, groupKey+" settings are not a map")
+		return nil, fmt.Errorf(groupKey + " settings are not a map")
 	}
 
-	return common.MapStr(v), nil
+	return mapstr.M(v), nil
 }

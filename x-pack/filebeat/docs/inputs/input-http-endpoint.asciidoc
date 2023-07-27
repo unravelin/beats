@@ -11,9 +11,37 @@
 
 beta[]
 
-Use the `http_endpoint` input to create a HTTP listener that can receive incoming HTTP POST requests.
+The HTTP Endpoint input initializes a listening HTTP server that collects
+incoming HTTP POST requests containing a JSON body. The body must be either an
+object or an array of objects. Any other data types will result in an HTTP 400
+(Bad Request) response. For arrays, one document is created for each object in
+the array.
 
-This input can for example be used to receive incoming webhooks from a third-party application or service.
+gzip encoded request bodies are supported if a `Content-Encoding: gzip` header
+is sent with the request.
+
+This input can for example be used to receive incoming webhooks from a
+third-party application or service.
+
+Multiple endpoints may be assigned to a single address and port, and the HTTP
+Endpoint input will resolve requests based on the URL pattern configuration.
+If multiple endpoints are configured on a single address they must all have the
+same TLS configuration, either all disabled or all enabled with identical
+configurations.
+
+These are the possible response codes from the server.
+
+[options="header"]
+|=========================================================================================================================================================
+| HTTP Response Code  | Name                    | Reason
+| 200                 | OK                      | Returned on success.
+| 400                 | Bad Request             | Returned if JSON body decoding fails.
+| 401                 | Unauthorized            | Returned when basic auth, secret header, or HMAC validation fails.
+| 405                 | Method Not Allowed      | Returned if methods other than POST are used.
+| 406                 | Not Acceptable          | Returned if the POST request does not contain a body.
+| 415                 | Unsupported Media Type  | Returned if the Content-Type is not application/json. Or if Content-Encoding is present and is not gzip.
+| 500                 | Internal Server Error   | Returned if an I/O error occurs reading the request.
+|=========================================================================================================================================================
 
 Example configurations:
 
@@ -39,6 +67,27 @@ Custom response example:
   response_body: '{"message": "success"}'
   url: "/"
   prefix: "json"
+----
+
+Multiple endpoints example:
+["source","yaml",subs="attributes"]
+----
+{beatname_lc}.inputs:
+- type: http_endpoint
+  enabled: true
+  listen_address: 192.168.1.1
+  listen_port: 8080
+  url: "/open/"
+  tags: [open]
+- type: http_endpoint
+  enabled: true
+  listen_address: 192.168.1.1
+  listen_port: 8080
+  url: "/admin/"
+  basic_auth: true
+  username: adminuser
+  password: somepassword
+  tags: [admin]
 ----
 
 Disable Content-Type checks
@@ -80,6 +129,20 @@ Authentication or checking that a specific header includes a specific value
   listen_port: 8080
   secret.header: someheadername
   secret.value: secretheadertoken
+----
+
+Validate webhook endpoint for a specific provider using CRC
+["source","yaml",subs="attributes"]
+----
+{beatname_lc}.inputs:
+- type: http_endpoint
+  enabled: true
+  listen_address: 192.168.1.1
+  listen_port: 8080
+  secret.header: someheadername
+  secret.value: secretheadertoken
+  crc.provider: webhookProvider
+  crc.secret: secretToken
 ----
 
 Validate a HMAC signature from a specific header
@@ -206,6 +269,15 @@ For example, `["content-type"]` will become `["Content-Type"]` when the filebeat
 
 This option copies the raw unmodified body of the incoming request to the event.original field as a string before sending the event to Elasticsearch.
 
+[float]
+==== `crc.provider`
+
+This option defines the provider of the webhook that uses CRC (Challenge-Response Check) for validating the endpoint. The HTTP endpoint input is responsible for ensuring the authenticity of incoming webhook requests by generating and verifying a unique token. By specifying the `crc.provider`, you ensure that the system correctly handles the specific CRC validation process required by the chosen provider.
+
+[float]
+==== `crc.secret`
+
+The secret token provided by the webhook owner for the CRC validation. It is required when a `crc.provider` is set.
 
 [id="{beatname_lc}-input-{type}-common-options"]
 include::../../../../filebeat/docs/inputs/input-common-options.asciidoc[]

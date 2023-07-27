@@ -23,13 +23,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pkg/errors"
-
 	"github.com/elastic/beats/v7/filebeat/input/file"
-	"github.com/elastic/beats/v7/libbeat/logp"
-	"github.com/elastic/beats/v7/libbeat/monitoring"
 	"github.com/elastic/beats/v7/libbeat/statestore"
 	"github.com/elastic/beats/v7/libbeat/statestore/backend"
+	"github.com/elastic/elastic-agent-libs/logp"
+	"github.com/elastic/elastic-agent-libs/monitoring"
 )
 
 type Registrar struct {
@@ -102,7 +100,7 @@ func (r *Registrar) GetStates() []file.State {
 func (r *Registrar) loadStates() error {
 	states, err := readStatesFrom(r.store)
 	if err != nil {
-		return errors.Wrap(err, "can not load filebeat registry state")
+		return fmt.Errorf("can not load filebeat registry state: %w", err)
 	}
 
 	r.states.SetStates(states)
