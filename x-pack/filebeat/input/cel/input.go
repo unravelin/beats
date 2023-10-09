@@ -150,7 +150,7 @@ func (i input) run(env v2.Context, src *source, cursor map[string]interface{}, p
 			Password: cfg.Auth.Basic.Password,
 		}
 	}
-	prg, err := newProgram(ctx, cfg.Program, root, client, limiter, auth, patterns, cfg.XSDs)
+	prg, err := newProgram(ctx, cfg.Program, root, client, limiter, auth, patterns, cfg.XSDs, log)
 	if err != nil {
 		return err
 	}
@@ -226,11 +226,11 @@ func (i input) run(env v2.Context, src *source, cursor map[string]interface{}, p
 			}
 
 			// Process a set of event requests.
-			log.Debugw("request state", logp.Namespace("cel"), "state", redactor{state: state, mask: cfg.Redact.Fields, delete: cfg.Redact.Delete})
+			log.Debugw("request state", logp.Namespace("cel"), "state", redactor{state: state, cfg: cfg.Redact})
 			metrics.executions.Add(1)
 			start := i.now()
 			state, err = evalWith(ctx, prg, state, start)
-			log.Debugw("response state", logp.Namespace("cel"), "state", redactor{state: state, mask: cfg.Redact.Fields, delete: cfg.Redact.Delete})
+			log.Debugw("response state", logp.Namespace("cel"), "state", redactor{state: state, cfg: cfg.Redact})
 			if err != nil {
 				switch {
 				case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
@@ -861,7 +861,7 @@ var (
 	}
 )
 
-func newProgram(ctx context.Context, src, root string, client *http.Client, limiter *rate.Limiter, auth *lib.BasicAuth, patterns map[string]*regexp.Regexp, xsd map[string]string) (cel.Program, error) {
+func newProgram(ctx context.Context, src, root string, client *http.Client, limiter *rate.Limiter, auth *lib.BasicAuth, patterns map[string]*regexp.Regexp, xsd map[string]string, log *logp.Logger) (cel.Program, error) {
 	xml, err := lib.XML(nil, xsd)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build xml type hints: %w", err)
@@ -875,6 +875,7 @@ func newProgram(ctx context.Context, src, root string, client *http.Client, limi
 		lib.Strings(),
 		lib.Time(),
 		lib.Try(),
+		lib.Debug(debug(log)),
 		lib.File(mimetypes),
 		lib.MIME(mimetypes),
 		lib.Regexp(patterns),
@@ -904,6 +905,17 @@ func newProgram(ctx context.Context, src, root string, client *http.Client, limi
 		return nil, fmt.Errorf("failed program instantiation: %w", err)
 	}
 	return prg, nil
+}
+
+func debug(log *logp.Logger) func(string, any) {
+	log = log.Named("cel_debug")
+	return func(tag string, value any) {
+		level := "DEBUG"
+		if _, ok := value.(error); ok {
+			level = "ERROR"
+		}
+		log.Debugw(level, "tag", tag, "value", value)
+	}
 }
 
 func evalWith(ctx context.Context, prg cel.Program, state map[string]interface{}, now time.Time) (map[string]interface{}, error) {
@@ -974,7 +986,7 @@ func test(url *url.URL) error {
 
 	_, err := net.DialTimeout("tcp", net.JoinHostPort(url.Hostname(), port), time.Second)
 	if err != nil {
-		return fmt.Errorf("url %q is unreachable", url)
+		return fmt.Errorf("url %q is unreachable: %w", url, err)
 	}
 
 	return nil
@@ -1021,21 +1033,20 @@ func (m *inputMetrics) Close() {
 
 // redactor implements lazy field redaction of sets of a mapstr.M.
 type redactor struct {
-	state  mapstr.M
-	mask   []string // mask is the set of dotted paths to redact from state.
-	delete bool     // if delete is true, delete redacted fields instead of showing a redaction.
+	state mapstr.M
+	cfg   *redact
 }
 
 // String renders the JSON corresponding to r.state after applying redaction
 // operations.
 func (r redactor) String() string {
-	if len(r.mask) == 0 {
+	if r.cfg == nil || len(r.cfg.Fields) == 0 {
 		return r.state.String()
 	}
 	c := make(mapstr.M, len(r.state))
 	cloneMap(c, r.state)
-	for _, mask := range r.mask {
-		if r.delete {
+	for _, mask := range r.cfg.Fields {
+		if r.cfg.Delete {
 			walkMap(c, mask, func(parent mapstr.M, key string) {
 				delete(parent, key)
 			})

@@ -54,6 +54,7 @@ import (
 	"github.com/elastic/beats/v7/libbeat/esleg/eslegclient"
 	"github.com/elastic/beats/v7/libbeat/features"
 	"github.com/elastic/beats/v7/libbeat/idxmgmt"
+	"github.com/elastic/beats/v7/libbeat/idxmgmt/lifecycle"
 	"github.com/elastic/beats/v7/libbeat/instrumentation"
 	"github.com/elastic/beats/v7/libbeat/kibana"
 	"github.com/elastic/beats/v7/libbeat/management"
@@ -133,6 +134,9 @@ type beatConfig struct {
 	// monitoring settings
 	MonitoringBeatConfig monitoring.BeatConfig `config:",inline"`
 
+	// ILM settings
+	LifecycleConfig lifecycle.RawConfig `config:",inline"`
+
 	// central management settings
 	Management *config.C `config:"management"`
 
@@ -201,7 +205,6 @@ func initRand() {
 // instance.
 // XXX Move this as a *Beat method?
 func Run(settings Settings, bt beat.Creator) error {
-
 	return handleError(func() error {
 		defer func() {
 			if r := recover(); r != nil {
@@ -502,7 +505,7 @@ func (b *Beat) launch(settings Settings, bt beat.Creator) error {
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	var stopBeat = func() {
+	stopBeat := func() {
 		b.Instrumentation.Tracer().Close()
 		beater.Stop()
 	}
@@ -615,8 +618,9 @@ type SetupSettings struct {
 	// Deprecated: use IndexManagementKey instead
 	Template bool
 	// Deprecated: use IndexManagementKey instead
-	ILMPolicy         bool
-	EnableAllFilesets bool
+	ILMPolicy                 bool
+	EnableAllFilesets         bool
+	ForceEnableModuleFilesets bool
 }
 
 // Setup registers ES index template, kibana dashboards, ml jobs and pipelines.
@@ -628,16 +632,19 @@ func (b *Beat) Setup(settings Settings, bt beat.Creator, setup SetupSettings) er
 		if err != nil {
 			return err
 		}
-
 		// Tell the beat that we're in the setup command
 		b.InSetupCmd = true
 
+		if setup.ForceEnableModuleFilesets {
+			if err := b.Beat.BeatConfig.SetBool("config.modules.force_enable_module_filesets", -1, true); err != nil {
+				return fmt.Errorf("error setting force_enable_module_filesets config option %w", err)
+			}
+		}
 		// Create beater to give it the opportunity to set loading callbacks
 		_, err = b.createBeater(bt)
 		if err != nil {
 			return err
 		}
-
 		if setup.IndexManagement || setup.Template || setup.ILMPolicy {
 			outCfg := b.Config.Output
 			if !isElasticsearchOutput(outCfg.Name()) {
@@ -648,14 +655,33 @@ func (b *Beat) Setup(settings Settings, bt beat.Creator, setup SetupSettings) er
 				return err
 			}
 
-			var loadTemplate, loadILM = idxmgmt.LoadModeUnset, idxmgmt.LoadModeUnset
+			// other components know to skip ILM setup under serverless, this logic block just helps us print an error message
+			// in instances where ILM has been explicitly enabled
+			var ilmCfg struct {
+				Ilm *config.C `config:"setup.ilm"`
+			}
+			err = b.RawConfig.Unpack(&ilmCfg)
+			if err != nil {
+				return fmt.Errorf("error unpacking ILM config: %w", err)
+			}
+			if ilmCfg.Ilm.Enabled() && esClient.IsServerless() {
+				fmt.Println("WARNING: ILM is not supported in Serverless projects")
+			}
+
+			loadTemplate, loadILM := idxmgmt.LoadModeUnset, idxmgmt.LoadModeUnset
 			if setup.IndexManagement || setup.Template {
 				loadTemplate = idxmgmt.LoadModeOverwrite
 			}
 			if setup.IndexManagement || setup.ILMPolicy {
 				loadILM = idxmgmt.LoadModeEnabled
 			}
-			m := b.IdxSupporter.Manager(idxmgmt.NewESClientHandler(esClient), idxmgmt.BeatsAssets(b.Fields))
+
+			mgmtHandler, err := idxmgmt.NewESClientHandler(esClient, b.Info, b.Config.LifecycleConfig)
+			if err != nil {
+				return fmt.Errorf("error creating index management handler: %w", err)
+			}
+
+			m := b.IdxSupporter.Manager(mgmtHandler, idxmgmt.BeatsAssets(b.Fields))
 			if ok, warn := m.VerifySetup(loadTemplate, loadILM); !ok {
 				fmt.Println(warn)
 			}
@@ -687,6 +713,7 @@ func (b *Beat) Setup(settings Settings, bt beat.Creator, setup SetupSettings) er
 					return fmt.Errorf("error setting enable_all_filesets config option %w", err)
 				}
 			}
+
 			esConfig := b.Config.Output.Config()
 			err = b.OverwritePipelinesCallback(esConfig)
 			if err != nil {
@@ -900,7 +927,7 @@ func (b *Beat) loadMeta(metaPath string) error {
 
 	// write temporary file first
 	tempFile := metaPath + ".new"
-	f, err = os.OpenFile(tempFile, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
+	f, err = os.OpenFile(tempFile, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0o600)
 	if err != nil {
 		return fmt.Errorf("failed to create Beat meta file: %w", err)
 	}
@@ -1048,7 +1075,11 @@ func (b *Beat) registerESIndexManagement() error {
 
 func (b *Beat) indexSetupCallback() elasticsearch.ConnectCallback {
 	return func(esClient *eslegclient.Connection) error {
-		m := b.IdxSupporter.Manager(idxmgmt.NewESClientHandler(esClient), idxmgmt.BeatsAssets(b.Fields))
+		mgmtHandler, err := idxmgmt.NewESClientHandler(esClient, b.Info, b.Config.LifecycleConfig)
+		if err != nil {
+			return fmt.Errorf("error creating index management handler: %w", err)
+		}
+		m := b.IdxSupporter.Manager(mgmtHandler, idxmgmt.BeatsAssets(b.Fields))
 		return m.Setup(idxmgmt.LoadModeEnabled, idxmgmt.LoadModeEnabled)
 	}
 }
